@@ -1,0 +1,131 @@
+#!/usr/bin/python
+
+
+DOCUMENTATION = '''
+---
+module: tower-cli
+short_description: Trigger ansible tower jobs from ansible tower
+description:
+  - Use tower-cli to trigger jobs
+options:
+  job_number:
+    description:
+      - The ansible tower unique job id
+    required: true
+  job_name:
+    description:
+      - The ansible tower job name, used to verify you have the correct id
+    required: true
+  env_limit:
+    description:
+      - The env_limit for the job, is appended to the definition of the host_limit
+    required: true
+  repository:
+    description:
+      - The jenkins repository name
+    required: true
+  build:
+    description:
+      - The jenkins build number
+    required: true
+  tags:
+    description:
+      - The jenkins build number
+    required: false
+'''
+
+EXAMPLES = '''
+- tower-cli: job_number={{ job_number }} job_name={{ job_name }} env_limit={{ env_limit }} repository={{ repository }} build={{ build }} tags={{ tags }}
+- ansible/hacking/test-module -m ./tower-cli -a "job_name='HelloTest'  job_number=309 env_limit='DevInt-MN-Linux' repository='chianti' build='123' tags='tag1,tag2,tag3'"
+'''
+
+import sys
+import requests
+import subprocess
+import json
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            job_number = dict(required=True),
+            job_name = dict(required=True),
+            env_limit = dict(required=True),
+            repository = dict(required=True),
+            build = dict(required=True),
+            tags = dict(required=False),
+        ),
+        supports_check_mode=False
+    )
+
+    changed = 'False'
+
+    params = module.params
+    job_number = params['job_number']
+    job_name = params['job_name']
+    env_limit = params['env_limit']
+    repository = params['repository']
+    build = params['build']
+    tags = params['tags']
+
+    try:
+        # Get job_template info
+        command = 'tower-cli job_template get {0} -f json'.format(job_number)
+        proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
+        (out, err) = proc.communicate()
+        if "Error" in out:
+            module.fail_json(msg='Unable to get job' + job_number + err)
+            exit(1)
+    except:
+        module.fail_json(msg='Unable to get job' + job_number + err)
+        exit(1)
+    if not err:
+        data = json.loads(out)
+        # Test that retrieved name and provided name match
+        if data['name'] != job_name:
+            module.fail_json(msg='Retrieved job name using id and playbook job name do not match')
+            exit(1)
+        # Seems odd I have to load twice
+        extra_vars = json.loads(data['extra_vars'])
+        # Test if host_limit is defined so you don't run a job with no host limit
+        try:
+            if not extra_vars['host_limit']:
+                module.fail_json(msg='No host limit set for job_template job_number:' + job_number)
+                exit(1)
+        except KeyError:
+            module.fail_json(msg='No host limit set for job_template job_number:' + job_number)
+            exit(1)
+        extra_vars['host_limit'] += env_limit
+        extra_vars['repository'] = repository
+        extra_vars['build'] = build
+        # Write extra_vars to file to allow them to be provided at command line
+        try:
+            f = open('/tmp/extra_vars.json', 'w')
+            f.write(json.dumps(extra_vars))
+            f.close()
+        except:
+            module.fail_json(msg='Unable to write to file')
+            exit(1)
+
+        try:
+            # Run job
+            command = 'tower-cli job launch --job-template {0} --extra-vars=/tmp/extra_vars.json --monitor'.format(job_number)
+            if tags:
+                command = 'tower-cli job launch --job-template {0} --extra-vars=/tmp/extra_vars.json --tags {1} --monitor'.format(job_number, tags)
+            proc = subprocess.Popen([command], stdout=subprocess.PIPE, shell=True)
+            (out, err) = proc.communicate()
+            if "Error" in out:
+                module.fail_json(msg='Unable to start job' + job_number + err)
+                exit(1)
+            changed = True
+        except:
+            module.fail_json(msg='Unable to start job' + job_number + err)
+            exit(1)
+    else:
+        module.fail_json(msg='err')
+        exit(1)
+
+    module.exit_json(job_number=job_number, job_name=job_name, env_limit=env_limit, repository=repository, build=build, changed=changed)
+    exit(0)
+
+from ansible.module_utils.basic import *
+main()

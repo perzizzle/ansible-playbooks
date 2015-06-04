@@ -1,0 +1,141 @@
+#!/usr/bin/python
+
+
+DOCUMENTATION = '''
+---
+module: jenkins
+short_description: gets artifacts and sets descriptions
+description: 
+  - interacts with Jenkins server to get artifact paths and to attach a comment to a build to show when/where it was deployed  
+options:
+  repository:
+    description: 
+      - the name of the jenkins repository
+    required: true
+  build:
+    description: 
+      - the build number or the string 'LAST' to signify the last stable build. Build number should be a string (i.e. '7' not 7)
+    required: true
+  findArtifact:
+    description: 
+      - flag to tell if this module should try to find the relative path of the artifact from the build
+    required: false
+  artifact:
+    description: 
+      - the filename of an artifact to find in the build. Always required, since it is part of any comment written to jenkins 
+    required: true 
+  writeDescription:
+    description: 
+      - flag to tell if this module should write a description back to the Jenkins build. The comment will look something like "Deployed artifact to env on Nov 1 13:00:00" 
+  env:
+    description: 
+      - the environment that the build is headed to (i.e. DEVINT, LOADTEST, STAGING, etc...). Required if writeDescription is true and no comment was specified
+    required: true 
+'''
+
+EXAMPLES = '''
+- jenkins: repository={{ repository }} build={{ build }} artifact={{ artifacts }} findArtifact=yes artifact='file.ext'
+- jenkins: repository={{ repository }} build={{ build }} artifact={{ artifacts }} findArtifact=no writeDescription=yes env='DEVINT'
+'''
+
+import sys
+import requests
+from jenkinsapi.jenkins import Jenkins
+
+def main():
+	module = AnsibleModule(
+		argument_spec = dict(
+			repository = dict(required=True),
+			build= dict(required=True),
+			artifact = dict(required=True),
+			env = dict(required=True),
+			findArtifact = dict(required=False, choices=BOOLEANS),
+			writeDescription = dict(required=False, choices=BOOLEANS),
+		),
+		required_one_of=[['findArtifact', 'writeDescription']],
+		supports_check_mode=True
+	)
+
+	changed = 'False'	# values to return if not otherwise changed
+	relativePath = '' 
+
+	params = module.params
+	repository = params['repository']
+	artifact = params['artifact']
+	build = params['build']
+	env = params['env']
+	findArtifact = params['findArtifact']
+	writeDescription = params['writeDescription']
+
+	if module.boolean(findArtifact) and artifact is None:
+		module.fail_json(msg='If you want to findArtifact, you really need to specify one')
+
+
+	# Initialize some variables and constants:
+	jenkinsUrl = 'http://jenkins.com'
+	username = 'username'
+	password = 'password'
+
+	# Get the server and job based on build param:
+	try:
+		jenkinsServer = Jenkins(jenkinsUrl, username=username, password=password)
+	except:
+		module.fail_json(msg='Unable to find ' + jenkinsUrl)
+		exit(1)
+	
+	try:		
+		jenkinsJob = jenkinsServer[repository]
+	except:	
+		module.fail_json(msg='Unable to find repository ' + repository)
+		exit(1)	
+		
+	try:
+		if build == "LAST":
+			jenkinsBuild = jenkinsJob.get_last_good_build()
+			build = str(jenkinsJob.get_last_good_buildnumber())
+		else:
+			jenkinsBuild = jenkinsJob.get_build(int(build))
+	except:
+		module.fail_json(msg='Unable to find build ' + str(build))
+		exit(1)
+
+	if module.boolean(findArtifact):
+		# Get the artifacts from the build and see if there is one with fileName=artifact. If found, grab the relativePath
+		artifacts = jenkinsBuild._data['artifacts']
+		for item in artifacts:
+			if item['fileName'] == artifact:
+				relativePath = item['relativePath']
+                relativePath = relativePath.replace(" ","%20")
+
+		if not relativePath:
+			module.fail_json(msg='Unable to find relative path for artifact: ' + artifact)
+			exit(1)
+
+	if module.boolean(writeDescription):
+		currentComment = jenkinsBuild._data['description']
+		if currentComment is None:
+			currentComment = ''
+
+		# If there is no comment, create one from env
+		if len(currentComment) <= 1:   # quirk w/ testing in Jenkins: you cannot reset a comment to '', only to ' '. 
+			newComment = 'Deployed ' + artifact + ' to ' + env + ' on ' + time.strftime("%m/%d/%y %H:%M")  # if this is first comment, don't prefix w/ space
+		else:
+			newComment = 'Deployed ' + artifact + ' to ' + env + ' on ' + time.strftime("%m/%d/%y %H:%M") + ' ' + currentComment
+		postData = {'description':newComment}
+		postUrl = jenkinsUrl + '/job/' + repository + '/' + str(build) + '/submitDescription'
+
+		if not module.check_mode:
+			try:
+				postResponse = requests.post(postUrl, data=postData, auth=(username, password))
+				changed = 'TRUE'
+			except:
+				module.fail_json(msg='Cannot set description')
+ 				exit(1)
+
+	module.exit_json(repository=repository, build=build, artifact=artifact, findArtifact=findArtifact, writeDescription=writeDescription, relativePath=relativePath, changed=changed, env=env)
+
+
+	exit(0)
+
+from ansible.module_utils.basic import *
+main()

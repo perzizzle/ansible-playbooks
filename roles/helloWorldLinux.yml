@@ -1,0 +1,13 @@
+---
+- name: Hello World Linux
+  hosts: "{{ host_limit }}"
+  gather_facts: false
+
+  tasks:
+  - name: Hello World Linux
+    shell: echo "hello world"
+    when: message is not defined
+
+  - name: Hello World Linux
+    shell: echo "hello world my message for you " {{ message }}
+    when: message is defined

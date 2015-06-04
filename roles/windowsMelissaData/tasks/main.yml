@@ -1,0 +1,41 @@
+---
+- name: Disable node
+  local_action: >
+    bigip_node
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=present
+    session_state=disabled
+    monitor_state=disabled
+    partition=Common
+    name="{{ ansible_fqdn|lower() }}"
+
+- name: Run the script that updates stuff.
+  script: UpdateMelissaData.ps1
+
+- name: Enable node
+  local_action: >
+    bigip_node
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=present
+    session_state=enabled
+    monitor_state=enabled
+    partition=Common
+    name="{{ ansible_fqdn|lower() }}"
+
+- name: Get node state
+  local_action: >
+    bigip_facts
+    server={{ f5_server }}
+    user={{ f5_username }}
+    password={{ f5_password }}
+    include=node
+  register: facts
+
+- name: assert node is up
+  delegate_to: 127.0.0.1
+  assert:
+    that: facts["ansible_facts"]["node"]["/Common/{{ ansible_fqdn|lower }}"]["object_status"]["availability_status"] == "AVAILABILITY_STATUS_GREEN"

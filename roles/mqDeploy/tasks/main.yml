@@ -1,0 +1,85 @@
+---
+- name: get mqsc file
+  get_url:  url=http://{{ branch }}&raw dest=/tmp/queue_manager.mqsc force=yes
+  tags:
+    - install
+    - update
+
+- name: create primary queue managers
+  shell: /app/mqm/bin/crtmqm {{ crtmqm_params }} -ld {{ mq_log_path }} -md {{ mq_data_path }} {{ prim_queue_name }}
+  sudo: yes
+  ignore_errors: true
+  tags:
+    - install
+
+- name: Update primary qm.ini
+  template: src={{ prim_queue_name }}.qm.ini.j2 dest={{ mq_data_path }}{{ prim_queue_name }}/qm.ini owner=mqm group=mqm mode=0764
+  sudo: yes
+  tags:
+    - install
+
+- name: create mq_init.conf
+  template: src=mq_init.conf.j2 dest=/app/mqm/mq_init.conf owner=mqm group=mqm mode=0764
+  sudo: yes
+  tags:
+    - install
+
+- name: get primary queue status
+  shell: /app/mqm/bin/dspmq | grep {{ prim_queue_name }}
+  register: primary_status
+  failed_when: primary_status.stderr
+  sudo: yes
+  tags:
+    - install
+
+- name: stop primary queue managers
+  shell: /app/mqm/bin/endmqm {{ prim_queue_name }}
+  when: "'Running' in primary_status.stdout"
+  register: primary_stop_output
+  sudo: yes
+  tags:
+    - install
+
+- name: pause 30 seconds to let queue stop
+  #look for more elegant solution using wait_for
+  pause: seconds=30
+  when: "'Running' in primary_status.stdout"
+  tags:
+    - install
+
+- name: get primary queue status
+  shell: /app/mqm/bin/dspmq | grep {{ prim_queue_name }}
+  register: primary_status
+  failed_when: primary_status.stderr
+  sudo: yes
+  tags:
+    - install
+
+- name: start up primary queue managers
+  shell: /app/mqm/bin/strmqm {{ prim_queue_name }}
+  when: "'Running' not in primary_status.stdout"
+  sudo: yes
+  tags:
+    - install
+
+- name: install the qm configuration
+  shell: /app/mqm/bin/runmqsc  {{ prim_queue_name }} < /tmp/queue_manager.mqsc
+  register: qm_config
+  register: shell_result
+  failed_when: "'Syntax error detected' in shell_result.stderr"
+  sudo: yes
+  tags:
+    - install
+    - update
+
+- name: create primary listener definition
+  shell: echo -e "DEFINE LISTENER({{ prim_queue_name }}) TRPTYPE(TCP) CONTROL(QMGR) PORT ({{ prim_queue_port  }}) \n end"|  /app/mqm/bin/runmqsc {{ prim_queue_name }}
+  sudo: yes
+  tags:
+    - install
+
+- name: restart primary queue manager
+  shell: sudo /sbin/service mqm restart
+  tags:
+    - install
+    - restart

@@ -1,0 +1,9 @@
+---
+- name: Ad hoc windows scripts
+  hosts: "{{ host_limit }}"
+  gather_facts: false
+
+  tasks:
+  
+  - name: Run ad-hoc command
+    raw: "{{ command }}"

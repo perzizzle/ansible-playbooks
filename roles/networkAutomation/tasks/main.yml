@@ -1,0 +1,99 @@
+--- 
+- name: Collect BIG-IP facts
+  local_action: >
+    bigip_facts
+    server={{ f5_server }}
+    user={{ f5_username }}
+    password={{ f5_password }}
+    include=device_group,interface,node,pool,system_info,traffic_group,virtual_server,vlan
+  register: facts
+  tags: facts
+
+- name: Add node
+  local_action: >
+    bigip_node
+    server={{ f5_server }}
+    user={{ f5_username }}
+    password={{ f5_password }}
+    state=present
+    partition=Common
+    host="{{ host_name }}"
+    name="{{ host_name }}"
+  tags: add_node
+
+- name: Delete node
+  local_action: >
+    bigip_node
+    server={{ f5_server }}
+    user={{ f5_username }}
+    password={{ f5_password }}
+    state=absent
+    partition=Common
+    host="{{ host_name }}"
+    name="{{ host_name }}"
+  tags: delete_node
+  
+- name: Change node session/monitor state
+  local_action: >
+    bigip_node
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=present
+    session_state={{ session_state }}
+    monitor_state={{ monitor_state }}
+    partition=Common
+    name="{{ host_name }}"
+  tags: node_state
+    
+- name: Add pool
+  local_action: >
+    bigip_pool
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=present
+    name={{ pool_name }}
+    partition=Common
+    lb_method=round_robin
+    slow_ramp_time=120
+  tags: add_pool
+    
+- name: Delete pool
+  local_action: >
+    bigip_pool
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=absent
+    name={{ pool_name }}
+    partition=Common
+  tags: delete_pool
+    
+- name: Change pool session/monitor state
+  local_action: >
+    bigip_pool_member
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=present
+    session_state={{ session_state }}
+    monitor_state={{ monitor_state }}
+    pool={{ pool_name }}
+    partition=Common
+    host="{{  host_name }}"
+    port=80
+  tags: pool_state
+    
+- name: Remove pool member from pool
+  local_action: >
+    bigip_pool
+    server={{ f5_server }}
+    user={{f5_username }}
+    password={{ f5_password }}
+    state=absent
+    name={{ pool_name }}
+    partition=Common
+    host="{{ host_name}}"
+    port=80
+  tags: remove_pool

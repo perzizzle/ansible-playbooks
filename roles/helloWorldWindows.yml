@@ -1,0 +1,10 @@
+---
+- name: Hello World Windows
+  #hosts: windows
+  hosts: "{{ host_limit }}"
+  gather_facts: false
+
+  tasks:
+  
+  - name: Hello
+    raw: "echo helloworld {{ message }}"

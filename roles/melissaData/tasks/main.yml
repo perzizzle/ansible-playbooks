@@ -1,0 +1,96 @@
+--- 
+- name: Build Melissa Data
+  shell: /app/melissadata/upgrade-md.sh
+  delegate_to: 127.0.0.1
+  tags: build
+
+- name: Get md5 of local file
+  stat: path=/data01/melissadata/downloads/{{ version }}/{{ version }}.tgz
+  register: file_details
+  delegate_to: 127.0.0.1
+  tags: retrieve_build
+
+- name: Get md5 of remote file
+  uri: url=http://{{ build_server }}:8001/{{ version }}/md5.txt return_content=yes
+  register: md5
+  delegate_to: 127.0.0.1
+  tags: retrieve_build
+
+- name: Create destination directory
+  file: path=/data01/melissadata/downloads/{{ version }}/ state=directory
+  delegate_to: 127.0.0.1
+  when: md5.content.strip() != file_details.stat.md5 | default(0)
+  tags: retrieve_build
+
+# may need to define current symlink here for retrieve_build
+
+- name: Determine current version
+  shell:  "ls -l '/data01/melissadata/current' | awk -F / '{print $NF}'"
+  delegate_to: 127.0.0.1
+  register: current
+  tags: deploy
+  
+- name: Set version if one is not defined by ansible  
+  set_fact: version={{ current.stdout }}
+  when: version is not defined
+  tags: deploy
+
+- name: Download file when checksums differ
+  get_url: "url=http://{{ build_server }}:8001/{{ version }}/{{ version }}.tgz dest=/data01/melissadata/downloads/{{ version }}/{{ version }}.tgz"
+  delegate_to: 127.0.0.1
+  when: md5.content.strip() != file_details.stat.md5 | default(0)
+  tags: retrieve_build
+
+- name: Create remote /app path
+  file: path=/app/melissadata/ state=directory
+  tags: deploy
+
+- name: Create remote /data01 path
+  file: path=/data01/melissadata/ state=directory
+  tags: deploy
+
+- name: Copy MD file to app servers
+  copy: src=/data01/melissadata/downloads/{{ version }}/{{ version }}.tgz dest=/data01/melissadata/{{ version }}.tgz  force=no #owner=jboss group=jboss mode="2770"
+  tags: deploy
+
+- name: Unarchive MD
+  unarchive: src=/data01/melissadata/{{ version }}.tgz dest=/data01/melissadata/ copy=no
+  tags: deploy
+
+- name: Fix directory permissions
+  shell: 'find /data01/melissadata/{{ version }}  -type d -exec chmod 2770 {} \;'
+  tags: deploy
+
+- name: Fix file permissions
+  shell: 'find /data01/melissadata/{{ version }} -type f -exec chmod 660  {} \;'
+  tags: deploy
+
+- name: Change owner
+  shell: chgrp -R jboss /data01/melissadata/{{ version }}
+  tags: deploy
+  
+- name: Remove old current symlink
+  shell: rm -rf /app/melissadata/*
+  tags: deploy
+
+- name: Create symlink
+  file: src=/data01/melissadata/{{ version }} dest=/app/melissadata/current state=link
+  tags: deploy
+
+- name: Delete tgz from app server
+  file: path=/data01/melissadata/{{ version }}.tgz  state=absent
+  tags: deploy
+
+- name: Cleanup app server (keep 2 MD directories)
+  shell: find /data01/melissadata/ -maxdepth 1 -mindepth 1 -type d -printf '%T@ %p\n' | sort -n | cut -d' ' -f2- | head -n -2 | xargs rm -rf #echo
+  tags: deploy
+
+- name: Cleanup old versions of MD on build server
+  shell: /app/melissadata/clean_up.sh
+  delegate_to: 127.0.0.1
+  tags: cleanup
+
+
+
+  
+

@@ -1,0 +1,25 @@
+---
+- name: Scheduled Task Managment
+  hosts: "{{ host_limit }}"
+  gather_facts: false
+
+  tasks:
+  - name: Enable cron job
+    cron: name="{{ cron_job_name }}" minute="{{ cron_job_minute }}" hour="{{ cron_job_hour }}" job="{{ cron_job_task }}" state=present
+    sudo_user: "{{ cron_user }}"
+    sudo: yes
+    tags: enable-cron
+
+  - name: Disable cron job
+    cron: name="{{ cron_job_name }}" state=absent
+    sudo_user: "{{ cron_user }}"
+    sudo: yes
+    tags: disable-cron
+    
+  - name: Enable schedule task
+    raw: powershell -Command "& {Enable-ScheduledTask -TaskName '{{ scheduled_task_name }}' }"
+    tags: enable-scheduled-task
+     
+  - name: Disable schedule task
+    raw: powershell -Command "& {Disable-ScheduledTask -TaskName '{{ scheduled_task_name }}' }"
+    tags: disable-scheduled-task

@@ -1,0 +1,7 @@
+---  
+- name: Execute oracle query
+  environment:
+    ORACLE_HOME: /app/oracle/product/current
+    LD_LIBRARY_PATH: /app/oracle/product/current
+  oracle_query: 'host={{ oracle_host }} user={{ oracle_user }} password={{ oracle_password }} name={{ service_name }} query="{{ oracle_query }}" input="{{ oracle_input }}"'
+  register: output

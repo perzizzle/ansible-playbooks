@@ -20,10 +20,10 @@
 
 DOCUMENTATION = '''
 ---
-module: bigip_gtm_wide_ip
-short_description: "Manages F5 BIG-IP GTM wide ip"
+module: bigip_virtual_server
+short_description: "Manages F5 BIG-IP LTM virtual servers"
 description:
-    - "Manages F5 BIG-IP GTM wide ip"
+    - "Manages F5 BIG-IP LTM virtual servers"
 version_added: "2.0"
 author: 'Michael Perzel'
 notes:
@@ -47,30 +47,26 @@ options:
         description:
             - BIG-IP password
         required: true
-    lb_method:
+    state:
         description:
-            - LB method of wide ip
+            - Virtual server state
         required: true
-        choices: ['return_to_dns', 'null', 'round_robin',
-                      'ratio', 'topology', 'static_persist', 'global_availability',
-                      'vs_capacity', 'least_conn', 'lowest_rtt', 'lowest_hops',
-                      'packet_rate', 'cpu', 'hit_ratio', 'qos', 'bps',
-                      'drop_packet', 'explicit_ip', 'connection_rate', 'vs_score']
-    wide_ip:
+        choices: ['present', 'absent','enabled','disabled']
+    name:
         description:
-            - Wide IP name
-        required: true
+            - Virtual server name
+        required: True
 '''
 
 EXAMPLES = '''
-  - name: Set lb method
+  - name: Enable virtual server
     local_action: >
-      bigip_gtm_wide_ip
+      bigip_virtual_server
       server=192.168.0.1
       user=admin
       password=mysecret
-      lb_method=round_robin
-      wide_ip=my_wide_ip
+      name=myname
+      state=enabled
 '''
 
 try:
@@ -84,22 +80,11 @@ def bigip_api(server, user, password):
     api = bigsuds.BIGIP(hostname=server, username=user, password=password)
     return api
 
-def get_wide_ip_lb_method(api, wide_ip):
-    lb_method = api.GlobalLB.WideIP.get_lb_method(wide_ips=[wide_ip])[0]
-    lb_method = lb_method.strip().replace('LB_METHOD_', '').lower()
-    return lb_method
-
-def get_wide_ip_pools(api, wide_ip):
-    try:
-        return api.GlobalLB.WideIP.get_wideip_pool([wide_ip])
-    except Exception, e:
-        print e
-
-def wide_ip_exists(api, wide_ip):
-    # hack to determine if wide_ip exists
+def virtual_server_exists(api, name):
+    # hack to determine if virtual server exists
     result = False
     try:
-        api.GlobalLB.WideIP.get_object_status(wide_ips=[wide_ip])
+        api.LocalLB.VirtualServer.get_object_status([name])
         result = True
     except bigsuds.OperationFailed, e:
         if "was not found" in str(e):
@@ -109,25 +94,30 @@ def wide_ip_exists(api, wide_ip):
             raise
     return result
 
-def set_wide_ip_lb_method(api, wide_ip, lb_method):
-    lb_method = "LB_METHOD_%s" % lb_method.strip().upper()
-    api.GlobalLB.WideIP.set_lb_method(wide_ips=[wide_ip], lb_methods=[lb_method])
+def get_virtual_server_state(api, name):
+    state = api.LocalLB.VirtualServer.get_enabled_state([name])
+    state = state[0].split('STATE_')[1].lower()
+    return state
+
+def get_system_active_folder(api):
+    folder = api.System.Session.get_active_folder()
+    return folder
+
+def set_virtual_server_state(api, name, state):
+    state = "STATE_%s" % state.strip().upper()
+    api.LocalLB.VirtualServer.set_enabled_state([name], [state])
+    
+def set_system_active_folder(api, folder):
+    api.System.Session.set_active_folder(folder)
 
 def main():
-
-    lb_method_choices = ['return_to_dns', 'null', 'round_robin',
-                                    'ratio', 'topology', 'static_persist', 'global_availability',
-                                    'vs_capacity', 'least_conn', 'lowest_rtt', 'lowest_hops',
-                                    'packet_rate', 'cpu', 'hit_ratio', 'qos', 'bps',
-                                    'drop_packet', 'explicit_ip', 'connection_rate', 'vs_score']
-
     module = AnsibleModule(
         argument_spec = dict(
             server = dict(type='str', required=True),
             user = dict(type='str', required=True),
             password = dict(type='str', required=True, no_log=True),
-            lb_method = dict(type='str', required=True, choices=lb_method_choices),
-            wide_ip = dict(type='str', required=True)
+            name = dict(type='str', required=True),
+            state = dict(type='str', required=True, choices=['enabled', 'disabled'])
         ),
         supports_check_mode=True
     )
@@ -138,23 +128,39 @@ def main():
     server = module.params['server']
     user = module.params['user']
     password = module.params['password']
-    wide_ip = module.params['wide_ip']
-    lb_method = module.params['lb_method']
+    name = module.params['name']
+    state = module.params['state']
+    
+    partition = name.split('/')[1]
+    full_path_partition = '/{0}'.format(partition)
 
     result = {'changed': False}  # default
 
     try:
         api = bigip_api(server, user, password)
+        
+        current_folder = get_system_active_folder(api)
+        if partition != current_folder:
+            set_system_active_folder(api, full_path_partition)
 
-        if not wide_ip_exists(api, wide_ip):
-            module.fail_json(msg="wide ip %s does not exist" % wide_ip)
-
-        if lb_method is not None and lb_method != get_wide_ip_lb_method(api, wide_ip):
-            if not module.check_mode:
-                set_wide_ip_lb_method(api, wide_ip, lb_method)
-                result = {'changed': True}
-            else:
-                result = {'changed': True}
+        if state == 'enabled':
+            if not virtual_server_exists(api, name):
+                module.fail_json(msg="virtual server does not exist")
+            if state != get_virtual_server_state(api, name):
+                if not module.check_mode:
+                    set_virtual_server_state(api, name, state)
+                    result = {'changed': True}
+                else:
+                    result = {'changed': True}
+        elif state == 'disabled':
+            if not virtual_server_exists(api, name):
+                module.fail_json(msg="virtual server does not exist")
+            if state != get_virtual_server_state(api, name):
+                if not module.check_mode:
+                    set_virtual_server_state(api, name, state)
+                    result = {'changed': True}
+                else:
+                    result = {'changed': True}
 
     except Exception, e:
         module.fail_json(msg="received exception: %s" % e)

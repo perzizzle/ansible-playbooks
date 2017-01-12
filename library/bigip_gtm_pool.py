@@ -81,47 +81,47 @@ except ImportError:
 else:
     bigsuds_found = True
 
-def bigip_api(bigip, user, password):
-    api = bigsuds.BIGIP(hostname=bigip, username=user, password=password)
+def bigip_api(server, user, password):
+    api = bigsuds.BIGIP(hostname=server, username=user, password=password)
     return api
 
 def get_pools(api):
     try:
-        return api.GlobalLB.Pool.get_list()
+        return api.GlobalLB.PoolV2.get_list()
     except Exception, e:
         module.fail_json(msg="received exception: %s" % e)
 
 def get_all_pool_status(api):
     try:
-        pool = api.GlobalLB.Pool.get_list()
-        return pool, api.GlobalLB.Pool.get_object_status(pool)
+        pool = api.GlobalLB.PoolV2.get_list()
+        return pool, api.GlobalLB.PoolV2.get_object_status(pool)
     except Exception, e:
         module.fail_json(msg="received exception: %s" % e)
 
 def get_pool_status(api, pool):
     try:
-        return api.GlobalLB.Pool.get_object_status([pool])
+        return api.GlobalLB.PoolV2.get_object_status([pool])
     except Exception, e:
         module.fail_json(msg="received exception: %s" % e)
 
 def get_pool_state(api, pool):
-    state = api.GlobalLB.Pool.get_enabled_state([pool])
+    state = api.GlobalLB.PoolV2.get_enabled_state([pool])
     state = state[0].split('STATE_')[1].lower()
     return state
 
 def get_pool_statistics(api, pool):
-    statistics = api.GlobalLB.Pool.get_statistics([pool])
+    statistics = api.GlobalLB.PoolV2.get_statistics([pool])
     return statistics
 
 def set_pool_state(api, pool, state):
     state = "STATE_%s" % state.strip().upper()
-    api.GlobalLB.Pool.set_enabled_state([pool], [state])
+    api.GlobalLB.PoolV2.set_enabled_state([pool], [state])
 
 def pool_exists(api, pool):
     # hack to determine if pool exists
     result = False
     try:
-        api.GlobalLB.Pool.get_object_status(pool_names=[pool])
+        api.GlobalLB.PoolV2.get_object_status(pools=[pool])
         result = True
     except bigsuds.OperationFailed, e:
         if "was not found" in str(e):
@@ -136,8 +136,7 @@ def member_exists(api, pool, name, server):
     result = False
     try:
         members = [{'name': name, 'server': server}]
-        api.GlobalLB.Pool.get_member_object_status(pool_names=[pool],
-                                                                                members=[members])
+        api.GlobalLB.PoolV2.get_member_object_status(pools=[pool], members=[members])
         result = True
     except bigsuds.OperationFailed, e:
         if "was not found" in str(e):
@@ -149,41 +148,39 @@ def member_exists(api, pool, name, server):
 
 def add_pool_member(api, pool, name, server):
     members = [{'name': name, 'server': server}]
-    api.GlobalLB.Pool.add_member_v2(pool_names=[pool], members=[members])
+    api.GlobalLB.PoolV2.add_member(pools=[pool], members=[members])
 
 def remove_pool_member(api, pool, name, server):
     members = [{'name': name, 'server': server}]
-    api.GlobalLB.Pool.remove_member_v2(pool_names=[pool], members=[members])
+    api.GlobalLB.PoolV2.remove_member(pools=[pool], members=[members])
 
 def add_pool(api, pool, lb_method):
-    if not lb_method:
-        lb_method = 'round_robin'
     lb_method = "LB_METHOD_%s" % lb_method.strip().upper()
     # is order necessary?
-    api.GlobalLB.Pool.create_v2(pool_names=[pool], lb_methods=[lb_method],
+    api.GlobalLB.PoolV2.create(pools=[pool], lb_methods=[lb_method],
                                members=[[]], orders=[[]])
 def remove_pool(api, pool):
-    api.GlobalLB.Pool.delete_pool(pool_names=[pool])
+    api.GlobalLB.PoolV2.delete_pool(pools=[pool])
 
 def main():
     state_method_choices = ['state_disabled', 'state_enabled']
     lb_method_choices = ['return_to_dns', 'null', 'round_robin',
-                                    'ratio', 'topology', 'static_persist', 'global_availability',
-                                    'vs_capacity', 'least_conn', 'lowest_rtt', 'lowest_hops',
-                                    'packet_rate', 'cpu', 'hit_ratio', 'qos', 'bps',
-                                    'drop_packet', 'explicit_ip', 'connection_rate', 'vs_score']
+                         'ratio', 'topology', 'static_persist', 'global_availability',
+                         'vs_capacity', 'least_conn', 'lowest_rtt', 'lowest_hops',
+                         'packet_rate', 'cpu', 'hit_ratio', 'qos', 'bps',
+                         'drop_packet', 'explicit_ip', 'connection_rate', 'vs_score']
 
     module = AnsibleModule(
         argument_spec = dict(
             server = dict(type='str', required=True),
             user = dict(type='str', required=True),
-            password = dict(type='str', required=True),
+            password = dict(type='str', required=True, no_log=True),
             state = dict(type='str', required=True, choices=['present', 'absent', 'enabled', 'disabled']),
             pool = dict(type='str', required=True),
             partition = dict(type='str', default='Common'),
             virtual_server_server = dict(type='str', required=False),
             virtual_server_name = dict(type='str', required=False),
-            lb_method = dict(type='str', required=True, choices=lb_method_choices)
+            lb_method = dict(type='str', choices=lb_method_choices, default='round_robin')
         ),
         supports_check_mode=True
     )
@@ -196,7 +193,13 @@ def main():
     password = module.params['password']
     state = module.params['state']
     partition = module.params['partition']
-    pool = "/%s/%s" % (partition, module.params['pool'])
+
+    if partition not in module.params['pool']:
+        pool = "/%s/%s" % (partition, module.params['pool'])
+    else:
+        pool = module.params['pool']
+
+    pool_id = {'pool_name': pool, 'pool_type': 'GTM_QUERY_TYPE_A'}
     virtual_server_name = module.params['virtual_server_name']
     virtual_server_server = module.params['virtual_server_server']
     lb_method = module.params['lb_method']
@@ -206,61 +209,21 @@ def main():
 
         result = {'changed': False}  # default
 
-        if state == 'absent':
-            if pool and virtual_server_name and virtual_server_server:
-                if pool_exists(api, pool) and member_exists(api, pool, virtual_server_name, virtual_server_server):
-                    if not module.check_mode:
-                        remove_pool_member(api, pool, virtual_server_name, virtual_server_server)
-                        remove_pool(api, pool)
-                        result = {'changed': True}
-                    else:
-                        # check-mode return value
-                        result = {'changed': True}
-            elif pool_exists(api, pool):
-                if not module.check_mode:
-                    remove_pool(api, pool)
-                    result = {'changed': True}
-                else:
-                    # check-mode return value
-                    result = {'changed': True}
-        elif state == 'present':
-            update = False
-            if not pool_exists(api, pool):
-                if not module.check_mode:
-                    try:
-                        add_pool(api, pool, lb_method)
-                        result = {'changed': True}
-                    except bigsuds.OperationFailed, e:
-                        if "already exists" in str(e):
-                            update = True
-                        else:
-                            # genuine exception
-                            raise
-                    # else:
-                    # stub add attributes to pool just created here
-                else:
-                    # check-mode return value
-                    result = {'changed': True}
-            else:
-                # pool exists -- potentially modify attributes
-                update = True
-            # update attributes stub
-            # if update:
-        elif state == 'enabled':
-            if not pool_exists(api, pool):
+        if state == 'enabled':
+            if not pool_exists(api, pool_id):
                 module.fail_json(msg="pool %s does not exist" % pool)
-            if state != get_pool_state(api, pool):
+            if state != get_pool_state(api, pool_id):
                 if not module.check_mode:
-                    set_pool_state(api, pool, state)
+                    set_pool_state(api, pool_id, state)
                     result = {'changed': True}
                 else:
                     result = {'changed': True}
         elif state == 'disabled':
-            if not pool_exists(api, pool):
+            if not pool_exists(api, pool_id):
                 module.fail_json(msg="pool %s does not exist" % pool)
-            if state != get_pool_state(api, pool):
+            if state != get_pool_state(api, pool_id):
                 if not module.check_mode:
-                    set_pool_state(api, pool, state)
+                    set_pool_state(api, pool_id, state)
                     result = {'changed': True}
                 else:
                     result = {'changed': True}

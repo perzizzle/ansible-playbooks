@@ -90,9 +90,23 @@ except ImportError:
 else:
     bigsuds_found = True
 
-def bigip_api(bigip, user, password):
-    api = bigsuds.BIGIP(hostname=bigip, username=user, password=password)
+def bigip_api(server, user, password):
+    api = bigsuds.BIGIP(hostname=server, username=user, password=password)
     return api
+    
+def server_exists(api, server):
+    # hack to determine if virtual server exists
+    result = False
+    try:
+        api.GlobalLB.Server.get_object_status([server])
+        result = True
+    except bigsuds.OperationFailed, e:
+        if "was not found" in str(e):
+            result = False
+        else:
+            # genuine exception
+            raise
+    return result
 
 def virtual_server_exists(api, name, server):
     # hack to determine if virtual server exists
@@ -134,7 +148,7 @@ def main():
         argument_spec = dict(
             server = dict(type='str', required=True),
             user = dict(type='str', required=True),
-            password = dict(type='str', required=True),
+            password = dict(type='str', required=True, no_log=True),
             state = dict(type='str', required=True, choices=['present', 'absent', 'enabled', 'disabled']),
             host =  dict(type='str', aliases=['address']),
             port = dict(type='int'),
@@ -161,31 +175,31 @@ def main():
     try:
         api = bigip_api(server, user, password)
 
-        if not virtual_server_exists(api, virtual_server_name, virtual_server_server):
-            module.fail_json(msg="virtual server does not exist")
-
         if state == 'absent':
-            if virtual_server_name and virtual_server_server:
-                if virtual_server_exists(api, virtual_server_name, virtual_server_server):
-                    if not module.check_mode:
-                        remove_virtual_server(api, virtual_server_name, virtual_server_server)
-                        result = {'changed': True}
-                    else:
-                        # check-mode return value
-                        result = {'changed': True}
+            if virtual_server_exists(api, virtual_server_name, virtual_server_server):
+                if not module.check_mode:
+                    remove_virtual_server(api, virtual_server_name, virtual_server_server)
+                    result = {'changed': True}
+                else:
+                    # check-mode return value
+                    result = {'changed': True}
         elif state == 'present':
             if virtual_server_name and virtual_server_server and address and port:
                 if not virtual_server_exists(api, virtual_server_name, virtual_server_server):
                     if not module.check_mode:
-                        add_virtual_server(api, virtual_server_name, virtual_server_server, address, port)
-                        result = {'changed': True}
+                        if server_exists(api, virtual_server_server):
+                            add_virtual_server(api, virtual_server_name, virtual_server_server, address, port)
+                            result = {'changed': True}
+                        else: 
+                            module.fail_json(msg="server does not exist")
                     else:
                         # check-mode return value
                         result = {'changed': True}
                 else:
-                    # Stub
-                    # virtual server exists -- potentially modify attributes
-                    result = {'changed': True}
+                    # virtual server exists -- potentially modify attributes --future feature
+                    result = {'changed': False}
+            else:
+                module.fail_json(msg="Address and port are required to create virtual server")
         elif state == 'enabled':
             if not virtual_server_exists(api, virtual_server_name, virtual_server_server):
                 module.fail_json(msg="virtual server does not exist")
@@ -212,4 +226,6 @@ def main():
 
 # import module snippets
 from ansible.module_utils.basic import *
-main()
+
+if __name__ == '__main__':
+    main()

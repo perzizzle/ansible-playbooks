@@ -1,0 +1,31 @@
+# target_datacenter is the datacenter that will be acted upon
+# verify_datacenter is the datacenter that is being verified to be online so that both datacenters are never disabled
+# flip_datacenter_variable is a boolean that translates the datacenter survey option to the correct target_datacenter
+
+- name: Get secure vars
+  include_vars: "vars/secure.yml"
+  when: env=="production" or env=="staging" or env=="beta"
+  no_log: true
+  delegate_to: "127.0.0.1"
+  run_once: true
+
+- name: Drop connections to node
+  raw: "delete sys connection ss-server-addr {{ ansible_facts_ip_address }}"
+  delegate_to: "{{ f5_ltm_server }}"
+
+- name: Pause to let connections drop
+  pause: seconds=10
+  delegate_to: "127.0.0.1"
+
+  # why are we iterating over items they all have the same ip address ???
+- name: Show connections to node
+  raw: "tmsh show sys connection ss-server-addr {{ ansible_facts_ip_address }}"
+  delegate_to: "{{ f5_ltm_server }}"
+  register: node_connections
+
+  # todo: iterate over show variable
+- name: Assert that node has no connections
+  assert:
+    that:
+      - "'Total records returned: 0' in node_connections|string"
+  delegate_to: 127.0.0.1

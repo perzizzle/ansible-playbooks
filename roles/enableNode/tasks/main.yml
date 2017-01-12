@@ -1,0 +1,39 @@
+--- 
+- name: Get secure vars
+  include_vars: "vars/{{ env }}/secure.yml"
+  when: env=="production" or env=="staging" or env=="beta"
+  no_log: true
+
+- name: Enable node including session/monitor state
+  local_action: >
+      bigip_node
+      server={{ f5_ltm_server }}
+      user={{f5_ltm_username }}
+      password={{ f5_ltm_password }}
+      state=present
+      session_state=enabled
+      monitor_state=enabled
+      partition=Common
+      name="/Common/{{ ansible_fqdn | lower }}"
+      validate_certs=no
+
+- name: Collect Node Facts
+  local_action: >
+      bigip_facts
+      server={{ f5_ltm_server }}
+      user={{ f5_ltm_username }}
+      password={{ f5_ltm_password }}
+      include=node
+      filter="/Common/{{ ansible_fqdn | lower }}"
+      validate_certs=no
+  register: node_facts
+
+- name: Assert node session state up
+  assert:
+      that:
+      - "'SESSION_STATUS_ENABLED' in node_facts['ansible_facts']['node']['/Common/{{ ansible_fqdn | lower }}']['session_status']"
+
+- name: Assert node enabled status up
+  assert:
+      that:
+      - "'ENABLED_STATUS_ENABLED' in node_facts['ansible_facts']['node']['/Common/{{ ansible_fqdn | lower }}']['object_status']['enabled_status']"

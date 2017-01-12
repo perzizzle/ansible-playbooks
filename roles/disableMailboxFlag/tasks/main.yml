@@ -1,0 +1,23 @@
+---  
+- name: Get secure vars
+  include_vars: "vars/{{ env }}/secure.yml"
+  when: env=="production" or env=="staging" or env=="beta"
+  no_log: true
+
+- name: Disable mailbox flag
+  environment:
+    ORACLE_HOME: /app/oracle/product/current
+    LD_LIBRARY_PATH: /app/oracle/product/current
+  oracle_query: 'host={{ oracle_host }} user={{ oracle_user }} password={{ oracle_password }} name={{ service_name }} query="{{ mailboxing_disable_query }}" input="ad-hoc"'
+
+- name: Select mailbox flag
+  environment:
+    ORACLE_HOME: /app/oracle/product/current
+    LD_LIBRARY_PATH: /app/oracle/product/current
+  oracle_query: 'host={{ oracle_host }} user={{ oracle_user }} password={{ oracle_password }} name={{ service_name }} query="{{ mailboxing_select_query }}" input="ad-hoc"'
+  register: output
+  
+- name: Assert db flag is false
+  assert:
+    that:
+      - "'false' in output|string"

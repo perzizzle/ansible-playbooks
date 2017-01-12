@@ -1,0 +1,129 @@
+- name: Get secure vars
+  include_vars: "vars/secure.yml"
+  when: env=="production" or env=="staging" or env=="beta"
+  no_log: true
+  run_once: true
+  
+  #LTM Work
+- name: Get LTM facts
+  local_action: >
+      bigip_facts
+      server={{ fqdn[datacenter].f5_ltm_server }}
+      user={{ f5_ltm_username }}
+      password={{ f5_ltm_password }}
+      include=virtual_server
+      filter={{ item }}
+      validate_certs=no
+  register: ltm_virtual_server_facts
+  with_items: "{{ fqdn[datacenter].f5_ltm_virtual_server }}"
+
+- name: Assert that LTM virtual server is available
+  assert:
+    that:
+      - "'AVAILABILITY_STATUS_GREEN' in ltm_virtual_server_facts.results[{{ item.0 }}].ansible_facts.virtual_server['{{ item.1 }}'].object_status.availability_status|string"
+  with_indexed_items: "{{ fqdn[datacenter].f5_ltm_virtual_server  }}"
+  delegate_to: "127.0.0.1"
+
+- name: Enable LTM virtual server
+  local_action: >
+    bigip_virtual_server
+    server={{ fqdn[datacenter].f5_ltm_server }}
+    user={{ f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    name={{ item }}
+    state=enabled
+  register: ltm_virtual_server_status
+  with_items:
+    - "{{ fqdn[datacenter].f5_ltm_virtual_server }}"
+  
+- name: Pause to let status update on GTM
+  local_action: pause seconds=35
+  when: ltm_virtual_server_status.changed
+
+  #Start of GTM work
+- name: Get GTM pools that are in wide_ip
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=wide_ip
+    fact_filter={{ fqdn[datacenter].f5_gtm_wide_ip }}
+  register: gtm_wide_ip_fact
+
+- name: Assert pool, wide_ip is defined and pool belongs to wide_ip
+  assert:
+    that:
+      - "fqdn[datacenter].f5_gtm_pool in gtm_wide_ip_fact['ansible_facts']['wide_ip']['{{ fqdn[datacenter].f5_gtm_wide_ip }}']['pool']|string"
+  delegate_to: "127.0.0.1"
+
+- name: Get GTM pool fact
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=pool
+    fact_filter={{ fqdn[datacenter].f5_gtm_pool }}
+  register: gtm_pool_fact
+
+# Cannot assert GTM pool is available because it shows as "availability_status": "AVAILABILITY_STATUS_RED", "enabled_status": "ENABLED_STATUS_DISABLED"
+#- name: Assert that GTM Pool is Available
+#  assert:
+#    that:
+#      - "'AVAILABILITY_STATUS_GREEN' in gtm_pool_fact['ansible_facts']['pool']['{{ f5_gtm_pool }}']['object_status']['availability_status']"
+#  tags: enable
+
+- name: Enable GTM pool
+  local_action: >
+    bigip_gtm_pool
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    state=enabled
+    pool={{ fqdn[datacenter].f5_gtm_pool }}
+  when: "'ENABLED_STATUS_DISABLED' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[datacenter].f5_gtm_pool }}']['object_status']['enabled_status']"
+  register: gtm_pool_status
+  
+- name: Pause to let GTM pool status update
+  local_action: pause seconds=5
+  when: gtm_pool_status.changed
+
+- name: Get GTM pool fact
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=pool
+    fact_filter={{ fqdn[datacenter].f5_gtm_pool }}
+  register: gtm_pool_fact
+
+- name: Assert that GTM Pool is Enabled
+  assert:
+    that:
+      - "'ENABLED_STATUS_ENABLED' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[datacenter].f5_gtm_pool }}']['object_status']['enabled_status']"
+  delegate_to: "127.0.0.1"
+
+  # Confirm opposite gtm pool status is correct
+- name: Pause to let GTM pool status update
+  local_action: pause seconds=15
+  when: gtm_pool_status.changed
+
+- name: Get GTM pool fact in opposite datacenter to confirm GTM replication is working
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server_alternate }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=pool
+    fact_filter={{ fqdn[datacenter].f5_gtm_pool }}
+  register: gtm_pool_fact
+
+- name: Assert that GTM alternate datacenter pool is enabled
+  assert:
+    that:
+      - "'ENABLED_STATUS_ENABLED' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[datacenter].f5_gtm_pool }}']['object_status']['enabled_status']"
+  delegate_to: "127.0.0.1"
+
+# End GTM work

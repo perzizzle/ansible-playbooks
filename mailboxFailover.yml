@@ -1,0 +1,37 @@
+---
+- name: Stop mailbox service
+  hosts: "{{ mailboxing[disable_datacenter].ssrv_server }}"
+  gather_facts: false
+
+  roles:
+    - { role: netServiceControl, command: stop, service_name: "SSWinServices.MailboxEnforcementServer" }
+
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: false
+
+  roles:
+    - { role: disableMailboxFlag, oracle_host: "{{ mailboxing[disable_datacenter].oracle_host }}", service_name: "{{ mailboxing[disable_datacenter].service_name }}" }
+    
+- name: Move mailboxing fqdns
+  hosts: "{{ fqdn_limit }}"
+  gather_facts: false
+  roles:
+    - enableDatacenter
+    - disableDatacenter
+    - blockDatacenter
+    - dropDatacenter
+
+- hosts: 127.0.0.1
+  connection: local
+  gather_facts: false
+
+  roles:
+    - { role: enableMailboxFlag, oracle_host: "{{ mailboxing[enable_datacenter].oracle_host }}", service_name: "{{ mailboxing[enable_datacenter].service_name }}" }
+    
+- name: Start mailbox service
+  hosts: "{{ mailboxing[enable_datacenter].ssrv_server }}"
+  gather_facts: false
+
+  roles:
+    - { role: netServiceControl, command: start, service_name: "SSWinServices.MailboxEnforcementServer" }

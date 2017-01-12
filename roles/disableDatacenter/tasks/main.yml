@@ -1,0 +1,99 @@
+# target_datacenter is the datacenter that will be acted upon
+# verify_datacenter is the datacenter that is being verified to be online so that both datacenters are never disabled
+# flip_datacenter_variable is a boolean that translates the datacenter survey option to the correct target_datacenter
+
+- name: Get secure vars
+  include_vars: "vars/secure.yml"
+  when: env=="production" or env=="staging" or env=="beta"
+  no_log: true
+  run_once: true
+
+- name: Flip flop target datacenter variable
+  local_action: set_fact target_datacenter="mn"
+  when: datacenter == "va" and flip_datacenter_variable|default("false") == "true"
+
+- name: Flip flop target datacenter variable
+  local_action: set_fact target_datacenter="va"
+  when: datacenter == "mn" and flip_datacenter_variable|default("false") == "true"
+  
+- name: Don't flip flop datacenter variable (if you are just disabling a datacenter not performing an enable then a disable)
+  local_action: set_fact target_datacenter="{{ datacenter }}"
+  when: flip_datacenter_variable|default("false") == "false"
+  
+- name: Define verify datacenter
+  local_action: set_fact verify_datacenter="mn"
+  when: target_datacenter == "va"
+  
+- name: Define verify datacenter
+  local_action: set_fact verify_datacenter="va"
+  when: target_datacenter == "mn"
+  
+  #Start of GTM work
+- name: Get alternate GTM pool fact
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=pool
+    fact_filter={{ fqdn[verify_datacenter].f5_gtm_pool }}
+  register: gtm_pool_fact
+
+- name: Assert that alternate datacenter GTM pool is available
+  assert:
+    that:
+      - "'AVAILABILITY_STATUS_GREEN' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[verify_datacenter].f5_gtm_pool }}']['object_status']['availability_status']"
+  delegate_to: "127.0.0.1"
+  
+- name: Assert that alternate datacenter GTM pool is enabled
+  assert:
+    that:
+      - "'ENABLED_STATUS_ENABLED' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[verify_datacenter].f5_gtm_pool }}']['object_status']['enabled_status']"
+  delegate_to: "127.0.0.1"
+
+- name: Get GTM pools that are in wide_ip in the target datacenter
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=wide_ip
+    fact_filter={{ fqdn[target_datacenter].f5_gtm_wide_ip }}
+  register: gtm_wide_ip_fact
+    
+- name: Assert pool, wide_ip is defined and pool belongs to wide_ip for the target datacenter
+  assert:
+    that:
+      - "fqdn[target_datacenter].f5_gtm_pool in gtm_wide_ip_fact['ansible_facts']['wide_ip']['{{ fqdn[target_datacenter].f5_gtm_wide_ip }}']['pool']|string"
+  delegate_to: "127.0.0.1"
+
+- name: Disable GTM pool
+  local_action: >
+    bigip_gtm_pool
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    state=disabled
+    pool={{ fqdn[target_datacenter].f5_gtm_pool }}
+  register: gtm_pool_status
+  
+  # Confirm opposite gtm pool status is correct
+- name: Pause to let GTM pool status update
+  local_action: pause seconds=15
+  when: gtm_pool_status.changed
+
+- name: Get GTM pool fact in opposite datacenter to confirm GTM replication is working
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server_alternate }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=pool
+    fact_filter={{ fqdn[target_datacenter].f5_gtm_pool }}
+  register: gtm_pool_fact
+
+- name: Assert that GTM alternate datacenter pool is disabled
+  assert:
+    that:
+      - "'ENABLED_STATUS_DISABLED' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[target_datacenter].f5_gtm_pool }}']['object_status']['enabled_status']"
+  delegate_to: "127.0.0.1"

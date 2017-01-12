@@ -1,0 +1,16 @@
+---
+- name: Datacenter traffic management
+  hosts: "{{ host_limit }}"
+  gather_facts: false
+  roles:
+    - { role: enableDatacenter, tags: ["enable"] }
+    - { role: disableDatacenter, tags: ["disable"] }
+    - { role: pause, tags: ["pause"] }
+    - { role: blockDatacenter, tags: ["block"] }
+    - { role: dropDatacenter, tags: ["drop"] }
+    - { role: serviceNowOutage, tags: ["serviceNowOutage"] }
+  vars:
+    ansible_ssh_user: ansible
+    
+# TODO: hack until delegate_to bugs are fixed
+

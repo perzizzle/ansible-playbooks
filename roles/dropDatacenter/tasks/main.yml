@@ -1,0 +1,116 @@
+# target_datacenter is the datacenter that will be acted upon
+# verify_datacenter is the datacenter that is being verified to be online so that both datacenters are never disabled
+# flip_datacenter_variable is a boolean that translates the datacenter survey option to the correct target_datacenter
+
+- name: Get secure vars
+  include_vars: "vars/secure.yml"
+  when: env=="production" or env=="staging" or env=="beta"
+  no_log: true
+  run_once: true
+  
+- name: Flip flop target datacenter variable
+  local_action: set_fact target_datacenter="mn"
+  when: datacenter == "va" and flip_datacenter_variable|default("false") == "true"
+
+- name: Flip flop target datacenter variable
+  local_action: set_fact target_datacenter="va"
+  when: datacenter == "mn" and flip_datacenter_variable|default("false") == "true"
+  
+- name: Don't flip flop datacenter variable if you are running a single job
+  local_action: set_fact target_datacenter="{{ datacenter }}"
+  when: flip_datacenter_variable|default("false") == "false"
+  
+- name: Define verify datacenter
+  local_action: set_fact verify_datacenter="mn"
+  when: target_datacenter == "va"
+  
+- name: Define verify datacenter
+  local_action: set_fact verify_datacenter="va"
+  when: target_datacenter == "mn"
+  
+- name: Get alternate LTM facts
+  local_action: >
+      bigip_facts
+      server={{ fqdn[verify_datacenter].f5_ltm_server }}
+      user={{ f5_ltm_username }}
+      password={{ f5_ltm_password }}
+      include=virtual_server
+      filter={{ item }}
+      validate_certs=no
+  register: alternate_ltm_virtual_server_facts
+  with_items: "{{ fqdn[verify_datacenter].f5_ltm_virtual_server }}"
+
+- name: Assert that alternate datacenter virtual server is available
+  assert:
+    that:
+      - "'AVAILABILITY_STATUS_GREEN' in alternate_ltm_virtual_server_facts.results[{{ item.0 }}].ansible_facts.virtual_server['{{ item.1 }}'].object_status.availability_status|string"
+  with_indexed_items: "{{ fqdn[verify_datacenter].f5_ltm_virtual_server  }}"
+  delegate_to: "127.0.0.1"
+  
+- name: Assert that alternate datacenter virtual server is enabled
+  assert:
+    that:
+      - "'ENABLED_STATUS_ENABLED' in alternate_ltm_virtual_server_facts.results[{{ item.0 }}].ansible_facts.virtual_server['{{ item.1 }}'].object_status.enabled_status|string"
+  with_indexed_items: "{{ fqdn[verify_datacenter].f5_ltm_virtual_server  }}"
+  delegate_to: "127.0.0.1"
+  
+- name: Get alternate datacenter GTM pool fact
+  local_action: >
+    bigip_gtm_facts_v2
+    server={{ f5_gtm_server }}
+    user={{ f5_gtm_username }}
+    password={{ f5_gtm_password }}
+    include=pool
+    fact_filter={{ fqdn[verify_datacenter].f5_gtm_pool }}
+  register: gtm_pool_fact
+
+- name: Assert that alternate datacenter GTM pool is available
+  assert:
+    that:
+      - "'AVAILABILITY_STATUS_GREEN' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[verify_datacenter].f5_gtm_pool }}']['object_status']['availability_status']"
+  delegate_to: "127.0.0.1"
+  
+- name: Assert that alternate datacenter GTM pool is enabled
+  assert:
+    that:
+      - "'ENABLED_STATUS_ENABLED' in gtm_pool_fact['ansible_facts']['pool']['{{ fqdn[verify_datacenter].f5_gtm_pool }}']['object_status']['enabled_status']"
+  delegate_to: "127.0.0.1"
+
+- block:
+  - name: Drop connections to LTM virtual server in the acted upon datacenter using tmsh
+    raw: "tmsh delete sys connection cs-server-addr {{ fqdn[target_datacenter].f5_ltm_virtual_server_ip }}"
+    delegate_to: "{{ fqdn[target_datacenter].f5_ltm_server }}"
+  rescue:
+  - name: Drop connections to LTM virtual server in the acted upon datacenter using module
+    local_action: >
+      bigip_sys_connection
+      server={{ fqdn[target_datacenter].f5_ltm_server }}
+      user={{ f5_ltm_username }}
+      password={{ f5_ltm_password }}
+      command="tmsh delete sys connection cs-server-addr {{ fqdn[target_datacenter].f5_ltm_virtual_server_ip }}"
+
+- name: Pause to let connections drop
+  local_action: pause seconds=10
+
+  # why are we iterating over items they all have the same ip address ???
+- block:
+  - name: Show connections to LTM virtual server in the acted upon datacenter using tmsh
+    raw: "tmsh show sys connection cs-server-addr {{ fqdn[target_datacenter].f5_ltm_virtual_server_ip }}"
+    delegate_to: "{{ fqdn[target_datacenter].f5_ltm_server }}"
+    register: ltm_virtual_server_connections
+  rescue:
+  - name: Show connections to LTM virtual server in the acted upon datacenter using module
+    local_action: >
+      bigip_sys_connection
+      server={{ fqdn[target_datacenter].f5_ltm_server }}
+      user={{ f5_ltm_username }}
+      password={{ f5_ltm_password }}
+      command="tmsh show sys connection cs-server-addr {{ fqdn[target_datacenter].f5_ltm_virtual_server_ip }}"
+    register: ltm_virtual_server_connections
+
+  # todo: iterate over show variable
+- name: Assert that online datacenter LTM virtual server has no connections
+  assert:
+    that:
+      - "'Total records returned: 0' in ltm_virtual_server_connections|string"
+  delegate_to: 127.0.0.1

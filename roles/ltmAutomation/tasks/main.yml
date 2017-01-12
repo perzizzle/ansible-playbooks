@@ -1,0 +1,98 @@
+---
+# Get secure vars
+- name: Get secure vars
+  include_vars: "vars/secure.yml"
+  no_log: true
+  tags: secure
+
+- name: Collect BIG-IP facts
+  bigip_facts:
+    server={{ f5_ltm_server }}
+    user={{ f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    include=device_group,interface,node,pool,system_info,traffic_group,virtual_server,vlan
+    filter={{ f5_ltm_filter }}
+  register: facts
+  tags: facts
+
+- name: Add node
+  bigip_node:
+    server={{ f5_ltm_server }}
+    user={{ f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=present
+    partition=Common
+    host="{{ host_name }}"
+    name="{{ host_name }}"
+  tags: add_node
+
+- name: Delete node
+  bigip_node:
+    server={{ f5_ltm_server }}
+    user={{ f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=absent
+    partition=Common
+    host="{{ host_name }}"
+    name="{{ host_name }}"
+  tags: delete_node
+  
+- name: Change node session/monitor state
+  bigip_node:
+    server={{ f5_ltm_server }}
+    user={{f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=present
+    session_state={{ session_state }}
+    monitor_state={{ monitor_state }}
+    partition=Common
+    name="{{ host_name }}"
+  tags: node_state
+    
+- name: Add pool
+  bigip_pool:
+    server={{ f5_ltm_server }}
+    user={{f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=present
+    name={{ pool_name }}
+    partition=Common
+    lb_method=round_robin
+    slow_ramp_time=120
+  tags: add_pool
+    
+- name: Delete pool
+  bigip_pool:
+    server={{ f5_ltm_server }}
+    user={{f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=absent
+    name={{ pool_name }}
+    partition=Common
+  tags: delete_pool
+    
+- name: Change pool session/monitor state
+  bigip_pool_member:
+    server={{ f5_ltm_server }}
+    user={{f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=present
+    session_state={{ session_state }}
+    monitor_state={{ monitor_state }}
+    pool={{ pool_name }}
+    partition=Common
+    host="{{  host_name }}"
+    port=80
+  tags: pool_state
+    
+- name: Remove pool member from pool
+  bigip_pool:
+    server={{ f5_ltm_server }}
+    user={{f5_ltm_username }}
+    password={{ f5_ltm_password }}
+    state=absent
+    name={{ pool_name }}
+    partition=Common
+    host="{{ host_name}}"
+    port=80
+  tags: remove_pool

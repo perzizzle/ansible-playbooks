@@ -113,14 +113,24 @@ def main():
         module.fail_json(msg=mess, changed=False)
         raise
 
+    # determine type of query and make upper case for comparison
+    type = query.split(' ', 1)[0].upper()
+
     cur = con.cursor()
     if input == 'ad-hoc':
         try:
             # Remove semi-colon if there is one in the query
             query = query.translate(None,';')
             cur.execute(query)
-            for count, row in enumerate(cur):
-                output[count] = row
+            if type == 'SELECT':
+                for count, row in enumerate(cur):
+                    output[count] = row
+            elif type == 'UPDATE':
+                con.commit()
+                output['count'] = cur.rowcount
+            else:
+                mess = "Query type of {0} not support".format(type)
+                module.fail_json(msg=mess, changed=False)
         except cx_Oracle.DatabaseError as e:
             error, = e.args
             mess = query + "->" + error.message

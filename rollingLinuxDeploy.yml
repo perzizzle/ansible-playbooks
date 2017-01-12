@@ -1,0 +1,10 @@
+---
+- name: Rolling Linux Deployment Playbook
+  hosts: "{{ host_limit }}"
+  gather_facts: true
+  any_errors_fatal: true
+  serial: "{{ serial }}"
+  roles:
+    - { role: disableNode, tags: ["rolling"] }
+    - { role: rollingLinuxDeploy, tags: ["always"] }
+    - { role: enableNode, tags: ["rolling"] }

@@ -1,0 +1,9 @@
+- name: Create kafka_broker telegraf configuration file
+  template:
+    src: kafka_broker.j2
+    dest: /etc/telegraf/telegraf.d/kafka.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

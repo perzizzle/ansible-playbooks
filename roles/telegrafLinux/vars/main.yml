@@ -1,0 +1,15 @@
+telegraf_deprecated_configs:
+  - http_listener.conf
+telegraf_processes_to_monitor:
+  - collectd
+  - consul
+  - falcond
+  - falcon-sensor
+  - kswapd0
+  - /opt/appdynamics/machine-agent/jre/bin/java
+  - puppet
+  - splunkd
+  - systemd
+  - telegraf
+telegraf_user_query: "[?name=='telegraf'].password"
+kafka_infra_broker_list: "{{ kafka_infra_brokers.split(',') if kafka_infra_broker_inventory_group is defined and kafka_infra_broker_inventory_group in groups else [] }}"

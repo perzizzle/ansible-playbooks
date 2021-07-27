@@ -1,0 +1,35 @@
+## Influx HTTP write listener
+{% if env=='devint' and server_role=='flux' %}
+[[inputs.influxdb_listener]]
+  ## Address and port to host HTTP listener on
+  service_address = ":8186"
+
+  ## timeouts
+  read_timeout = "10s"
+  write_timeout = "10s"
+
+[[inputs.influxdb_v2_listener]]
+  ## Address and port to host InfluxDB listener on
+  service_address = ":8286"
+
+[[inputs.http_listener_v2]]
+  service_address = ":8386"
+  data_format = "graphite"
+
+{% else %}
+[[inputs.influxdb_listener]]
+  ## Address and port to host HTTP listener on
+  service_address = "localhost:8186"
+  ## timeouts
+  read_timeout = "10s"
+  write_timeout = "10s"
+  
+[[inputs.influxdb_v2_listener]]
+  ## Address and port to host InfluxDB listener on
+  service_address = "localhost:8286"
+
+[[inputs.http_listener_v2]]
+  service_address = "localhost:8386"
+  data_format = "graphite"
+{% endif %}
+

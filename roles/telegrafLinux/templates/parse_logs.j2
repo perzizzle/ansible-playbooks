@@ -1,0 +1,14 @@
+# # Stream and parse log file(s).
+[[inputs.logparser]]
+   name_prefix="infra_"
+   files = ["/app/uid/switch-app/current/logs/access_log"]
+   from_beginning =  false
+   watch_method = "inotify"
+
+   [inputs.logparser.grok]
+     patterns = [ '%{IP:clientip} .*? .*? .*? \[%{NOTSPACE:date} \-%{INT}\] \"%{WORD:action} .*? .*? %{NUMBER:status} sz=%{DATA:size} .*? hostheader=%{GREEDYDATA:header}']
+
+
+     ## Name of the outputted measurement name.
+     measurement = "access_log"
+

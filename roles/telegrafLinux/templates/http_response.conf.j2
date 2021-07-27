@@ -1,0 +1,9 @@
+[[inputs.http_response]]
+  name_prefix="{{ name_prefix }}"
+  ## One or more URLs from which to read formatted metrics
+  urls = [
+    "https://{{ url }}{{ uri }}"
+  ]
+  insecure_skip_verify = {{ insecure_skip_verify }}
+
+  response_timeout = "5s"

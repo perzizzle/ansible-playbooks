@@ -1,0 +1,55 @@
+#!/bin/python
+import requests
+import os
+
+baseUrl = "https://localhost:9443/ibmmq/rest/v1"
+url = "{}/admin/qmgr".format(baseUrl)
+username = "mqadmin"
+password = "{{ mqadmin_password }}"
+
+# Get all queue managers on server
+try:
+    response = requests.request("GET", url, auth=(username, password), verify=False)
+    response.raise_for_status()
+    qmanagersJson = response.json()
+except Exception as e:
+    print("Received exception trying to get queue managers: {0}".format(e))
+    exit(1)
+
+# For each queue on queue manager get metrics
+for qmnger in qmanagersJson["qmgr"]:
+    # make sure the qmger is running and filter qmgers for SS_QM*
+    if qmnger["state"] != "running" or "SS_QM" not in qmnger["name"]:
+        continue
+
+    qmngerName = qmnger["name"]
+    
+    # get all queues with RXH prefix
+    url = "{0}/admin/qmgr/{1}/queue?name=SS*&status=status.currentDepth%2Cstatus.oldestMessageAge%2Cstatus.lastPut%2Cstatus.monitoringRate".format(baseUrl, qmngerName)
+    try:
+        response = requests.request("GET", url, auth=(username, password), verify=False)
+        response.raise_for_status()
+        javaQueues = response.json()["queue"]
+    except Exception as e:
+        print("Received exception trying to get RXH queues: {0}".format(e))
+        exit(1)
+
+    # get all queues with SS prefix
+    url = "{0}/admin/qmgr/{1}/queue?name=RXH*&status=status.currentDepth%2Cstatus.oldestMessageAge%2Cstatus.lastPut%2Cstatus.monitoringRate".format(baseUrl, qmngerName)
+    try:
+        response = requests.request("GET", url, auth=(username, password), verify=False)
+        response.raise_for_status()
+        netQueues = response.json()["queue"]
+    except Exception as e:
+        print("Received exception trying to get SS queues: {0}".format(e))
+        exit(1)
+
+    # Format as line protocol here
+    for queue in javaQueues + netQueues:
+        name = queue["name"]
+        depth = queue["status"]["currentDepth"]
+        lputtime = queue["status"]["lastPut"]
+        monq = queue["status"]["monitoringRate"].upper()
+        msgage = queue["status"]["oldestMessageAge"]
+
+        print ('mq_queue,queue_mgr={0},queues={1} depth={2},lputtime="{3}",monq="{4}",msgage={5}'.format(qmngerName, name, depth, lputtime, monq, msgage))

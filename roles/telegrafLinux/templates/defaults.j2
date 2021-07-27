@@ -1,0 +1,73 @@
+###############################################################################
+#                                  GLOBAL TAGS                                #
+###############################################################################
+# Global tags can be specified here in key="value" format.
+[global_tags]
+  datacenter = "{{ datacenter | lower }}"
+  server_role = "{{ role | lower }}"
+  os = "{{ os | lower }}"
+  pool = "{{ pool | lower }}"
+  env = "{{ env | lower }}"
+
+###hardware metrics
+[[inputs.cpu]]
+  name_prefix = "infra_"
+  percpu = true
+  totalcpu = true
+  collect_cpu_time = false
+  fieldpass = ["usage_user", "usage_system", "usage_idle", "usage_iowait"]
+  [inputs.cpu.tagpass]
+    cpu = [ "cpu-total" ]
+
+[[inputs.disk]]
+  name_prefix = "infra_"
+  ignore_fs = ["tmpfs", "devtmpfs", "devfs"]
+  fieldpass = ["free", "total", "used", "used_percent"]
+  tagexclude = ["device"]
+  [inputs.disk.tagdrop]
+    path = [ "*serviced*", "/export/home*", "/home/*", "/tmp/veeam/snapmnt*" ] # docker, home directories, oracle
+
+
+[[inputs.diskio]]
+  name_prefix = "infra_"
+  fielddrop = ["iops_in_progress", "merged_*"]
+  [inputs.diskio.tagpass]
+    name = [ "sd*[!0-9]", "dm-[0-9]" ]
+
+#[[inputs.kernel]]
+#  name_prefix = "infra_"
+
+[[inputs.mem]]
+  name_prefix = "infra_"
+  fieldpass = ["active", "available", "buffered", "cached", "free", "total", "used", "available_percent", "used_percent"]
+
+#[[inputs.processes]]
+#  name_prefix = "infra_"
+
+[[inputs.swap]]
+  name_prefix = "infra_"
+  fieldpass = ["used_percent"]
+
+[[inputs.system]]
+  name_prefix = "infra_"
+  fieldpass = ["load1", "load5", "load15", "uptime","n_cpus"]
+  
+[[inputs.net]]
+  name_prefix = "infra_"
+  ignore_protocol_stats = true
+  [inputs.net.tagdrop]
+    interface = [ "veth*" ] # virtual tunnels/docker
+
+
+{% for process in telegraf_processes_to_monitor %}
+[[inputs.procstat]]
+  name_prefix = "infra_"
+  pattern = "{{ process }}"
+  fieldpass = [ "memory_rss",
+	              "cpu_usage",
+	              "memory_swap",
+	              "context_switches",
+	              "num_threads",
+	              "major_faults",
+	              "minor_faults" ]
+{% endfor %}

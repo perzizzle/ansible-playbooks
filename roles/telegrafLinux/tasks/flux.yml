@@ -1,0 +1,9 @@
+- name: Create influxdb configuration file
+  template:
+    src: influx_plugin.j2
+    dest: /etc/telegraf/telegraf.d/influxdb.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

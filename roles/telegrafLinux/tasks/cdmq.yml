@@ -1,0 +1,9 @@
+- name: Create rabbitmq telegraf configuration file
+  copy:
+    src: rabbitmq_prometheus.conf
+    dest: /etc/telegraf/telegraf.d/rabbitmq_prometheus.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

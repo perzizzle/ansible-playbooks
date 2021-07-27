@@ -1,0 +1,36 @@
+[[inputs.snmp]]
+  agents = [  "{{ f5_gtm_server }}" ]
+  version = 2
+  community = "influx"
+  interval = "60s"
+  name_prefix="infra_f5_"
+
+  [[inputs.snmp.field]]
+  name = "hostname"
+  oid = "RFC1213-MIB::sysName.0"
+  is_tag = true
+
+  [[inputs.snmp.table]]
+  name = "WideipStatus"
+  oid = "F5-BIGIP-GLOBAL-MIB::gtmWideipStatusTable"
+  inherit_tags = [ "hostname" ]
+  
+  [[inputs.snmp.table]]
+  name = "WideipPool"
+  oid = "F5-BIGIP-GLOBAL-MIB::gtmWideipPoolTable"
+  inherit_tags = [ "hostname" ]
+  
+  [[inputs.snmp.table]]
+  name = "gtmVsStatus"
+  oid = "F5-BIGIP-GLOBAL-MIB::gtmVsStatusTable"
+  inherit_tags = [ "hostname" ]
+  
+  [[inputs.snmp.table]]
+  name = "gtmVsTable"
+  oid = "F5-BIGIP-GLOBAL-MIB::gtmVsTable"
+  inherit_tags = [ "hostname" ]
+  
+  [[inputs.snmp.table]]
+  name = "gtmPoolMbrStatus"
+  oid = "F5-BIGIP-GLOBAL-MIB::gtmPoolMbrStatusTable"
+  inherit_tags = [ "hostname" ]

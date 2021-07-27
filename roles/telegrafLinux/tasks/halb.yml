@@ -1,0 +1,9 @@
+- name: Create haproxy telegraf configuration file
+  template:
+    src: haproxy.j2
+    dest: /etc/telegraf/telegraf.d/haproxy.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

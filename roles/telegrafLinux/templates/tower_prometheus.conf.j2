@@ -1,0 +1,11 @@
+[[inputs.prometheus]]
+  name_prefix = "infra_tower_"
+  ## An array of urls to scrape metrics from.
+  urls = ["https://{{ ansible_tower_server }}/api/v2/metrics"]
+
+  username = "{{ ansible_tower_user }}"
+  password = "{{ ansible_tower_password }}"
+
+  metric_version = 2
+
+  tagexclude = ["license_expiry"]

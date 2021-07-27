@@ -1,0 +1,296 @@
+#  see these links for metric details
+#  https://docs.confluent.io/3.3.2/kafka/monitoring.html
+#  https://www.datadoghq.com/blog/monitoring-kafka-performance-metrics/#broker-metrics
+
+[[inputs.jolokia2_agent]]
+  urls = ["http://localhost:50564/jolokia"]
+  name_prefix = "infra_kafka_"
+
+ fielddrop   = [
+    "*EventType",
+    "*FifteenMinuteRate",
+    "*LatencyUnit",
+    "*RateUnit",
+    "*50thPercentile",
+    "*75thPercentile",
+    "*95thPercentile",
+    "*98thPercentile",
+    "*999thPercentile",
+    "*Min",
+    "*StdDev"
+   ]
+
+# Gather garbage collection metrics
+ [[inputs.jolokia2_agent.metric]]
+   name          = "gc"
+   mbean         = "java.lang:type=GarbageCollector,name=*"
+   paths         = ["LastGcInfo", "CollectionCount", "CollectionTime"]
+   tag_keys      = ["name"]
+
+# kafka.network Produce, FetchConsoumer, and FetchFollower metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=LocalTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=LocalTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=LocalTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RemoteTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RemoteTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RemoteTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=TotalTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=TotalTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=TotalTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestsPerSec,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestsPerSec,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestsPerSec,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestBytes,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestBytes,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestBytes,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ThrottleTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ThrottleTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ThrottleTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestQueueTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestQueueTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=RequestQueueTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ResponseQueueTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ResponseQueueTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ResponseQueueTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ResponseSendTimeMs,request=Produce"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ResponseSendTimeMs,request=FetchFollower"
+    tag_keys     = ["name","request"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_requests"
+    mbean        = "kafka.network:type=RequestMetrics,name=ResponseSendTimeMs,request=FetchConsumer"
+    tag_keys     = ["name","request"]
+
+
+# Kafka Network Processor Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_processor"
+    mbean        = "kafka.network:name=NetworkProcessorAvgIdlePercent,type=SocketServer"
+    tag_keys     = ["name"]
+
+# Kafka Network channel queue Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "network_request_channel"
+    mbean        = "kafka.network:type=RequestChannel,name=RequestQueueSize"
+    tag_keys     = ["name"]
+
+# Kafka Server Replica Manager Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "server_replicamanager"
+    mbean        = "kafka.server:type=ReplicaManager,name=IsrShrinksPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "server_replicamanager"
+    mbean        = "kafka.server:type=ReplicaManager,name=IsrExpandsPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "server_replicamanager"
+    mbean        = "kafka.server:type=ReplicaManager,name=UnderReplicatedPartitions"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "server_replicamanager"
+    mbean        = "kafka.server:type=ReplicaManager,name=PartitionCount"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "server_replicamanager"
+    mbean        = "kafka.server:type=ReplicaManager,name=LeaderCount"
+    tag_keys     = ["name"]
+
+# Kafka Server Replica Fetcher Manager Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "server_replicamanager"
+    mbean        = "kafka.server:type=ReplicaFetcherManager,name=MaxLag,clientId=Replica"
+    tag_keys     = ["name"]
+
+# kafka FetcherLagMetrics metrics
+ [[inputs.jolokia2_agent.metric]]
+    name         = "server_fetcherlagmetrics"
+    mbean        = "kafka.server:type=FetcherLagMetrics,name=ConsumerLag,clientId=*,topic=*,partition=*"
+    tag_keys     = ["name","topic","partition"]
+
+# Kafka Controller OfflinePartitionsCount Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "controller"
+    mbean        = "kafka.controller:type=KafkaController,name=OfflinePartitionsCount"
+    tag_keys     = ["name"]
+
+# Kafka Controller ActiveControllerCount Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "controller"
+    mbean        = "kafka.controller:type=KafkaController,name=ActiveControllerCount"
+    tag_keys     = ["name"]
+
+# Kafka Controller ActiveControllerCount Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "controller"
+    mbean        = "kafka.controller:type=ControllerStats,name=LeaderElectionRateAndTimeMs"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "controller"
+    mbean        = "kafka.controller:type=ControllerStats,name=UncleanLeaderElectionsPerSec"
+    tag_keys     = ["name"]
+
+# kafka purgatory metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "purgatory"
+    mbean        = "kafka.server:type=DelayedOperationPurgatory,name=PurgatorySize,delayedOperation=Produce"
+    tag_keys     = ["delayedOperation"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "purgatory"
+    mbean        = "kafka.server:type=DelayedOperationPurgatory,name=PurgatorySize,delayedOperation=Fetch"
+    tag_keys     = ["delayedOperation"]
+
+# Aggregate incoming/outgoing byte rate
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=MessagesInPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=TotalProduceRequestsPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=BytesInPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=BytesOutPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=TotalFetchRequestsPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=FailedFetchRequestsPerSec"
+    tag_keys     = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:type=BrokerTopicMetrics,name=FailedProduceRequestsPerSec"
+    tag_keys     = ["name"]
+
+# Kafka Server Request Handler Metrics
+  [[inputs.jolokia2_agent.metric]]
+    name         = "broker"
+    mbean        = "kafka.server:name=RequestHandlerAvgIdlePercent,type=KafkaRequestHandlerPool"
+    tag_keys     = ["name"]
+
+# Log flush rate
+  [[inputs.jolokia2_agent.metric]]
+    name        = "broker"
+    mbean       = "kafka.log:type=LogFlushStats,name=LogFlushRateAndTimeMs"

@@ -1,0 +1,9 @@
+- name: Create kafka consumer telegraf configuration file
+  template:
+    src: kafka_consumer.conf.j2
+    dest: /etc/telegraf/telegraf.d/kafka_consumer.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'reload telegraf'

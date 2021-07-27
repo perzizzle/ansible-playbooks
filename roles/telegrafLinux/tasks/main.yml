@@ -1,0 +1,243 @@
+---
+- name: Define telegraf password
+  set_fact:
+    telegraf_password: "{{ influx_users | json_query(telegraf_user_query) | first }}"
+  run_once: true
+
+- name: "Create tick stack repository"
+  yum_repository:
+    name: "artifactory_yum_local_tickstack"
+    baseurl: "https://{{artifactory_server}}/artifactory/yum-local/tickstack/"
+    description: "Tickstack opensource repository"
+    enabled: true
+    gpgcheck: false
+    sslverify: false
+  become: true
+
+- name: Install telegraf
+  shell: "yum clean all; yum install telegraf-{{ telegraf_version }} --disablerepo=* --enablerepo='*artifactory_yum_local_tickstack*' -y"
+  register: telegraf_binary
+  notify: 'restart linux service'
+  become: true
+
+- name: Add the telegraf user to oracle group for running ggsci
+  user:
+    name: telegraf
+    group: cfyg_cdftp
+    groups:
+      - oinstall
+      - cfyg_cdftp
+      - telegraf
+    append: true
+    home: /home/telegraf
+    shell: /bin/bash
+  when: "telegraf_oracle_install | bool"
+  notify: 'restart linux service'
+  become: true
+
+- name: Create directories for telegraf configuration
+  file:
+    state: directory
+    path: "/etc/{{ item }}"
+    owner: s_ansible
+    group: telegraf
+    mode: 0775
+  become: true
+  loop:
+    - telegraf
+    - telegraf/telegraf.d
+
+- name: Create directories for scripts
+  file:
+    state: directory
+    path: "/app/uid/{{ item }}"
+    owner: s_ansible
+    group: telegraf
+    mode: 0775
+  become: true
+  with_items:
+    - telegraf
+    - telegraf/scripts
+
+- name: Define icon specific parameters
+  set_fact:
+    telegraf_outputs:
+      influx: true
+      kafka: false
+    telegraf_interval: "20s" # input
+    telegraf_flush_interval: "10s" # output
+    telegraf_metric_batch_size: 5000 # output
+    telegraf_metric_buffer_limit: 100000 # output
+    telegraf_max_undelivered_messages: 100000 # input
+    # partitions
+    # number of agents
+  when: "'icon' in inventory_hostname"
+
+- name: Render telegraf configuration
+  template:
+    src: telegraf.conf.j2
+    dest: /etc/telegraf/telegraf.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'restart linux service'
+
+- name: Delete telegraf influx output configuration
+  file:
+    state: absent
+    path: "/etc/telegraf/telegraf.d/influx_output.conf"
+  become: true
+  notify: 'restart linux service'
+  when: 'not telegraf_outputs.influx|bool'
+
+- name: Render telegraf influx output configuration
+  template:
+    src: influx_output.conf.j2
+    dest: /etc/telegraf/telegraf.d/influx_output.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'restart linux service'
+  when: 'telegraf_outputs.influx|bool'
+
+- name: Delete telegraf kafka output configuration
+  file:
+    state: absent
+    path: "/etc/telegraf/telegraf.d/kafka_output.conf"
+  become: true
+  notify: 'restart linux service'
+  when: 'not telegraf_outputs.kafka|bool'
+
+- name: Render telegraf kafka output configuration
+  template:
+    src: kafka_output.conf.j2
+    dest: /etc/telegraf/telegraf.d/kafka_output.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'restart linux service'
+  when: "telegraf_outputs.kafka|bool and 'icon' not in inventory_hostname"
+
+- name: Create default telegraf configuration file
+  template:
+    src: defaults.j2
+    dest: /etc/telegraf/telegraf.d/defaults.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true
+
+- name: Create influxdb_listener telegraf configuration file
+  template:
+    src: influxdb_listener.conf.j2
+    dest: /etc/telegraf/telegraf.d/influxdb_listener.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true
+
+- name: Include telegraf internal tasks
+  include_tasks: telegraf_internal.yml
+
+- name: Include jolokia tasks
+  include_tasks: jolokia.yml
+  when: "not telegraf_oracle_install | bool"
+
+- name: Include singleton tasks on ansb
+  include_tasks: ansb_singleton.yml
+  when: "'ansb' in inventory_hostname and ansible_primary_node == inventory_hostname"
+
+- name: Include tasks on ansb
+  include_tasks: ansb.yml
+  when: "'ansb' in inventory_hostname"
+
+- name: Include cdmq tasks
+  include_tasks: cdmq.yml
+  when: "'cdmq' in inventory_hostname"
+
+- name: Include docker tasks
+  include_tasks: dock.yml
+  when: "'dock' in inventory_hostname"
+
+- name: Include cldd and cldn tasks
+  include_tasks: cld.yml
+  when: "'cldd' in inventory_hostname or 'cldn' in inventory_hostname"
+
+- name: Include halb tasks
+  include_tasks: halb.yml
+  when: "'halb' in inventory_hostname"
+
+- name: Include hvlt tasks
+  include_tasks: hvlt.yml
+  when: "'hvlt' in inventory_hostname"
+
+- name: Include icon tasks
+  include_tasks: icon.yml
+  when: "'icon' in inventory_hostname"
+
+- name: Include jenkins tasks
+  include_tasks: bild.yml
+  when: "jenkins_master_hostname is defined and inventory_hostname==jenkins_master_hostname"
+
+- name: Include kccr tasks
+  include_tasks: kccr.yml
+  when: "'kccr' in inventory_hostname"
+
+- name: Include kbrk tasks
+  include_tasks: kbrk.yml
+  when: "'kbrk' in inventory_hostname or 'ibrk' in inventory_hostname"
+
+#- name: Include kflx tasks
+#  include_tasks: kflx.yml
+#  when: "'kflx' in inventory_hostname"
+
+- name: Include kzpr tasks
+  include_tasks: kzpr.yml
+  when: "'kzpr' in inventory_hostname or 'izpr' in inventory_hostname"
+
+- name: Include mpi instance tasks
+  include_tasks: mpii.yml
+  when: "'mpi' in inventory_hostname and mpi_instance_group is defined and mpi_instance_group in groups and inventory_hostname in groups[mpi_instance_group]"
+
+- name: Include network tasks on nwrk
+  include_tasks: nwrk.yml
+  when: "'nwrk' in inventory_hostname and env in ['production', 'staging', 'mn_loadtest']"
+
+- name: Include orcl tasks
+  include_tasks: orcl.yml
+  when: "telegraf_oracle_install"
+
+- name: Include queue tasks
+  include_tasks: mqs.yml
+  when: "'mqs' in inventory_hostname"
+
+- name: Include Consul Server tasks
+  include_tasks: sres.yml
+  when: "server_role in ['sres', 'vres']"
+  # vres are Consul servers dedicated to Vault storage
+
+- name: Include ssrv tasks
+  include_tasks: ssrv.yml
+  when: "'l-ssrv' in inventory_hostname"
+
+- name: Delete deprecated telegraf configs
+  file:
+    state: absent
+    path: "/etc/telegraf/telegraf.d/{{ item }}"
+  with_items: "{{ telegraf_deprecated_configs | default([]) }}"
+  notify: 'reload telegraf'
+
+- name: Ensure telegraf is enabled and started regardless of change
+  service:
+    name: telegraf
+    enabled: true
+    state: started
+  become: true
+
+- name: Flush handlers
+  meta: flush_handlers

@@ -1,0 +1,1 @@
+../../kafkaConnectorsManage/files/get_kafka_replicator.py

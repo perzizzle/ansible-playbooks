@@ -1,0 +1,8 @@
+# Gather health check statuses from services registered in Consul
+{% for datacenter in consul_datacenters | default([consul_datacenter]) %}
+[[inputs.consul]]
+  name_prefix="infra_"
+  datacentre = "{{ datacenter }}"
+  tag_delimiter = "-"
+  tagexclude = ["artifact","build","check_id","path","version"]
+{% endfor %}

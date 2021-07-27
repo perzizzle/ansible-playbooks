@@ -1,0 +1,6 @@
+telegraf_oracle_install: False
+service_name: telegraf
+telegraf_interval: "20s" # input
+telegraf_flush_interval: "20s" # output
+telegraf_metric_batch_size: 5000 # output
+telegraf_metric_buffer_limit: 100000 # output

@@ -1,0 +1,45 @@
+[[inputs.snmp]]
+  agents = [ {% for server in f5_dc_ltm_servers %} "{{ server }}"{% if not loop.last %},{% endif %} {% endfor %}]
+  version = 2
+  community = "influx"
+  interval = "60s"
+  name_prefix="infra_f5_"
+
+  [[inputs.snmp.field]]
+  name = "hostname"
+  oid = "RFC1213-MIB::sysName.0"
+  is_tag = true
+
+  [[inputs.snmp.table]]
+  name = "PoolMbrStatus"
+  oid = "F5-BIGIP-LOCAL-MIB::ltmPoolMbrStatusTable"
+  inherit_tags = [ "hostname" ]
+  
+  [[inputs.snmp.table]]
+  name = "ltmVsTable"
+  oid = "F5-BIGIP-LOCAL-MIB::ltmVirtualServTable"
+  inherit_tags = [ "hostname" ]
+
+  # ltmPoolMbrStatusAvailState
+  # 0 - error
+  # 1 - available in some capacity
+  # 2 - not currently available
+  # 3 - not available
+  # 4 - availability is unknown
+  # 5 - unlicensed
+  #
+  # ltmPoolMbrStatusEnabledState
+  # 0 - none
+  # 1 - enabled
+  # 2 - disabled
+  # 3 - disabledbyparent
+
+  #[[inputs.snmp.table]]
+  #name = "AddrStatusTable"
+  #oid = "F5-BIGIP-LOCAL-MIB::ltmNodeAddrStatusTable"
+  #inherit_tags = [ "hostname" ]
+
+  #[[inputs.snmp.table]]
+  #name = "PoolStatusTable"
+  #oid = "F5-BIGIP-LOCAL-MIB::ltmPoolStatusTable"
+  #inherit_tags = [ "hostname" ]

@@ -1,0 +1,9 @@
+- name: Create netstat telegraf configuration
+  copy:
+    src: nstat.conf
+    dest: /etc/telegraf/telegraf.d/nstat.conf
+    owner: s_ansible
+    mode: 0755
+    group: telegraf
+  notify: 'reload telegraf'
+  become: true

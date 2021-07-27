@@ -1,0 +1,34 @@
+- name: Copy queue python script
+  template:
+    src: queue_metrics.py.j2
+    dest: /app/uid/telegraf/scripts/queue_metrics.py
+  when: env in ['devint', 'mn_loadtest', 'qa-system-test']
+
+- name: Copy queue python script
+  copy: 
+    src: queue_metrics.py
+    dest: /app/uid/telegraf/scripts/queue_metrics.py
+  when: env in ['production', 'staging']
+
+- name: Copy netstat bash script
+  copy: 
+    src: netstat.sh 
+    dest: /app/uid/telegraf/scripts/netstat.sh
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+
+- name: Render input plugin configuration
+  template:
+    src: exec.conf.j2
+    dest: /etc/telegraf/telegraf.d/queue.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  vars:
+    telegraf_exec_commands: 
+      - "python /app/uid/telegraf/scripts/queue_metrics.py"
+      - "/app/uid/telegraf/scripts/netstat.sh"
+  notify: 'reload telegraf'
+  become: true

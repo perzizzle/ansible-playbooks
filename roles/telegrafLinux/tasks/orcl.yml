@@ -1,0 +1,19 @@
+- name: Copy ogg lag python script
+  copy: 
+    src: ogg_lag.py 
+    dest: /app/uid/telegraf/scripts/ogg_lag.py
+    mode: 0775
+    group: telegraf
+    owner: oracle
+  become: true
+
+- name: Copy input and enum definition
+  copy:
+    src: ogg_lag.conf
+    dest: /etc/telegraf/telegraf.d/ogg_lag.conf
+    mode: 0755
+    group: telegraf
+    owner: oracle
+  when: "'0001' in inventory_hostname" # Only run on first node of each cluster
+  notify: 'reload telegraf'
+  become: true

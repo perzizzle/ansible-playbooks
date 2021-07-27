@@ -1,0 +1,38 @@
+###############################################################################
+#                                  OUTPUTS                                    #
+###############################################################################
+# Configuration for influxdb server to send metrics to
+{% for server in influx_db %}
+{% for retention in influx_db_configuration[0]['retention'] %}
+{% if retention.telegraf_output %}
+[[outputs.influxdb]]
+  # The full HTTP or UDP endpoint URL for your InfluxDB instance.
+  # Multiple urls can be specified but it is assumed that they are part of the same
+  # cluster, this means that only ONE of the urls will be written to each interval.
+  urls = ["{{ server['protocol'] | default('http') }}://{{ server['host'] }}:{{ server['port'] }}"] # required
+
+  # The target database for metrics (telegraf will create it if not exists)
+  database = "telegraf" # required
+  skip_database_creation = true
+{% if retention.namepass is defined %}
+  retention_policy = "{{ retention.name }}"
+  # only write app transaction metrics here
+  namepass = ["{{ retention.namepass }}"]
+{% endif %}
+  # Precision of writes, valid values are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+  # note: using second precision greatly helps InfluxDB compression
+  precision = "s"
+{% if retention.namedrop is defined %}
+  namedrop = [{% for item in retention.namedrop %}"{{ item }}"{%- if not loop.last %},{% endif %}{% endfor %}]
+ {% endif %}
+  ## Write timeout (for the InfluxDB client), formatted as a string.
+  ## If not provided, will default to 5s. 0s means no timeout (not recommended).
+  timeout = "15s"
+  username = "telegraf"
+  password = "{{ telegraf_password }}"
+  ## HTTP Content-Encoding for write request body, can be set to "gzip" to
+  ## compress body or "identity" to apply no encoding.
+  content_encoding = "gzip"
+{% endif %}
+{% endfor %}
+{% endfor %}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Documentation of this file format can be found here https://jolokia.org/reference/html/security.html#security-policy -->
+<restrict>
+  <!-- only allow localhost requests, no external access -->
+  <remote>
+    <host>127.0.0.1</host>
+  </remote>
+
+  <!-- Do not allow write or execute JMX operations -->
+  <commands>
+    <command>read</command>
+    <command>list</command>
+    <command>version</command>
+  </commands>
+</restrict>

@@ -1,0 +1,48 @@
+- name: Install snmpwalk and snmpget
+  yum:
+    name: "net-snmp-utils"
+    state: latest
+  become: true
+  
+- name: Render switch snmp config file
+  template:
+    src: nexus_switch.j2
+    dest: /etc/telegraf/telegraf.d/nexus_switch_{{ item.name }}.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true
+  when: "env == 'production'"
+  with_items: "{{ nexus_switches }}"
+
+- name: Copy out mibs
+  copy:
+    src: "{{ item }}"
+    dest: /usr/share/snmp/mibs/
+  with_items:
+    - F5-BIGIP-LOCAL-MIB.txt
+    - F5-BIGIP-COMMON-MIB.txt
+    - F5-BIGIP-GLOBAL-MIB.txt
+  become: true
+
+- name: Create f5 ltm snmp configuration file
+  template:
+    src: f5ltm.conf.j2
+    dest: /etc/telegraf/telegraf.d/f5ltm.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'reload telegraf'
+
+- name: Create f5 gtm snmp configuration file
+  template:
+    src: f5gtm.conf.j2
+    dest: /etc/telegraf/telegraf.d/f5gtm.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  when: "f5_gtm_metrics_collection is defined and f5_gtm_metrics_collection == true"
+  notify: 'reload telegraf'

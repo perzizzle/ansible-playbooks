@@ -1,0 +1,47 @@
+[[inputs.jolokia2_agent]]
+
+  urls = ["http://localhost:8090/jolokia"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_heap_memory_usage"
+    mbean  = "java.lang:type=Memory"
+    paths = ["HeapMemoryUsage"]
+
+  ## This collect thread counts metrics.
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_thread_count"
+    mbean  = "java.lang:type=Threading"
+    paths = ["TotalStartedThreadCount","ThreadCount","DaemonThreadCount","PeakThreadCount"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_gc_info"
+    mbean = "java.lang:type=GarbageCollector,name=*"
+    paths = ["LastGcInfo", "CollectionCount", "CollectionTime"]
+    tag_keys = ["name"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_metaspace"
+    mbean = "java.lang:type=MemoryPool,name=Metaspace"
+    paths = ["Usage"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_storage"
+    mbean  = "org.jfrog.artifactory: type=Storage,instance=Artifactory,prop=Binary Storage"
+    paths = ["Size"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_datasource"
+    mbean  = "org.jfrog.artifactory: type=Storage,instance=Artifactory,prop=Data Source"
+    paths = ["ActiveConnectionsCount", "MaxWait", "IdleConnectionsCount", "UpdateQueriesCount", "SelectQueriesCount", "MaxIdle", "MinIdle", "MaxActive"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_http_pool_nuget"
+    mbean  = "org.jfrog.artifactory: type=HTTPConnectionPool,instance=Artifactory,prop=nuget-org"
+    paths = ["Max","Leased","Available","Pending"]
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "appMetrics_jmx_artifactory_http_pool_chocolatey"
+    mbean  = "org.jfrog.artifactory: type=HTTPConnectionPool,instance=Artifactory,prop=nuget-org"
+    paths = ["Max","Leased","Available","Pending"]
+

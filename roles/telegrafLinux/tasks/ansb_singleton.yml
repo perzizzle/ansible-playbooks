@@ -1,0 +1,24 @@
+- name: Create prometheus tower config
+  template:
+    src: tower_prometheus.conf.j2
+    dest: /etc/telegraf/telegraf.d/tower_prometheus.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'reload telegraf'
+
+- name: Create tower ping config per load balancer
+  template:
+    src: http_response.conf.j2
+    dest: /etc/telegraf/telegraf.d/tower_lb_http_response.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  vars:
+    url: "{{ ansible_tower_server }}:443"
+    uri: /api/v2/ping/?format=json
+    insecure_skip_verify: "true"
+    name_prefix: infra_tower_ping_
+  become: true
+  notify: 'reload telegraf'

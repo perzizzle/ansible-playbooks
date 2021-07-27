@@ -1,0 +1,14 @@
+#### Internal telegraf agent metrics ####
+# Documentation of metrics to collect can be found here:
+# https://github.com/influxdata/telegraf/blob/master/plugins/inputs/internal/README.md
+
+# Collect statistics about itself
+[[inputs.internal]]
+  name_prefix="infra_telegraf_"
+  ## If true, collect telegraf memory stats.
+  collect_memstats = false
+  {% if server_role != 'icon' %}
+  fieldpass = ["buffer_size", "metrics_dropped", "metrics_written"]
+  {% else %}
+  fieldpass = ["buffer_size", "metrics_dropped", "metrics_written", "write_time_ns"]
+  {% endif %}

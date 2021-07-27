@@ -1,0 +1,9 @@
+- name: Create docker telegraf configuration file
+  copy:
+    src: docker.conf
+    dest: /etc/telegraf/telegraf.d/docker.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

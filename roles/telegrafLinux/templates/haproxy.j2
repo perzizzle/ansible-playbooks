@@ -1,0 +1,13 @@
+[[inputs.haproxy]]
+  name_prefix="infra_"
+  ## An array of address to gather stats about. Specify an ip on hostname
+  ## with optional port. ie localhost, 10.10.3.33:1936, etc.
+  ## Make sure you specify the complete path to the stats endpoint
+  ## including the protocol, ie http://10.10.3.33:1936/haproxy?stats
+
+  ## Credentials for basic HTTP authentication
+  username = "admin"
+  password = "{{ haproxy_admin_password }}"
+
+  ## If no servers are specified, then default to 127.0.0.1:1936/haproxy?stats
+  servers = ["http://localhost:25002/haproxy?stats"]

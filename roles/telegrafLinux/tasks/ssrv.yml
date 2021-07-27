@@ -1,0 +1,19 @@
+- name: Create consul telegraf configuration file
+  template:
+    src: consul.j2
+    dest: /etc/telegraf/telegraf.d/consul.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+
+- name: Create vsphere telegraf configuration file
+  template:
+    src: vsphere.toml.j2
+    dest: /etc/telegraf/telegraf.d/vsphere.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true
+  when: "env == 'production'"

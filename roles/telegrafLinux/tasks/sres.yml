@@ -1,0 +1,9 @@
+- name: Create procstat telegraf configuration file for consul
+  copy:
+    src: consul_server.conf
+    dest: /etc/telegraf/telegraf.d/consul_server.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

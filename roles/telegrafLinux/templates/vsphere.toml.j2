@@ -1,0 +1,132 @@
+# Read metrics from one or many vCenters
+[[inputs.vsphere]]
+  name_prefix="infra_"
+  tagexclude=["guesthostname","moid","source","uuid"]
+
+  ## List of vCenter URLs to be monitored. These three lines must be uncommented
+  ## and edited for the plugin to work.
+  vcenters = [ "{{ vsphere_host }}" ]
+  username = "{{ vsphere_telegraf_user }}@{{ vmware_ad_domain }}"
+  password = "{{ vsphere_telegraf_password }}"
+
+  ## VMs
+  ## Typical VM metrics (if omitted or empty, all metrics are collected)
+  vm_metric_include = [
+    "cpu.costop.summation",
+    "cpu.ready.summation",
+    "cpu.system.summation",
+    "cpu.usagemhz.average",
+    "cpu.usagemhz.maximum",
+    "cpu.usage.average",
+    "disk.numberReadAveraged.average",
+    "disk.numberWriteAveraged.average",
+    "cpu.usage.maximum",
+    "mem.usage.average",
+    "mem.usage.maximum",
+    "virtualDisk.read.average",
+    "virtualDisk.write.average",
+    "virtualDisk.totalReadLatency.average",
+    "virtualDisk.totalWriteLatency.average",
+	"sys.uptime.latest"
+  ]
+  # vm_metric_exclude = [] ## Nothing is excluded by default
+  # vm_instances = true ## true by default
+
+  ## Hosts
+  ## Typical host metrics (if omitted or empty, all metrics are collected)
+  host_metric_include = [
+    "cpu.corecount.contention.average",
+    "cpu.costop.summation",    
+    "cpu.usage.maximum",
+    "cpu.usage.average",
+    "cpu.usagemhz.maximum",
+    "cpu.usagemhz.average",
+    "cpu.capacity.provisioned.average",
+    "cpu.capacity.usage.average",
+    "cpu.corecount.provisioned.average",
+    "cpu.corecount.usage.average",
+    "mem.consumed.maximum",
+    "mem.consumed.average",
+    "mem.active.maximum",
+    "mem.active.average",
+    "mem.usage.maximum",
+    "mem.usage.average",
+    "mem.swapused.maximum",
+    "mem.swapused.average",
+    "mem.overhead.maximum",
+    "mem.overhead.average",
+    "mem.vmmemctl.maximum",
+    "mem.vmmemctl.average",
+    "disk.capacity.provisioned.average",
+    "disk.capacity.usage.average",
+    "disk.deviceReadLatency.average",
+    "disk.deviceWriteLatency.average",
+    "disk.numberRead.summation",
+    "disk.numberWrite.summation",
+    "disk.queueReadLatency.average",
+    "disk.queueWriteLatency.average",
+    "disk.read.average",
+    "disk.write.average",
+    "disk.usage.maximum",
+    "disk.usage.average"
+  ]
+  #host_metric_exclude = ["*"] ## Nothing excluded by default
+  # host_instances = true ## true by default
+
+  ## Clusters
+  # cluster_metric_include = [] ## if omitted or empty, all metrics are collected
+  cluster_metric_exclude = ["*"] ## Nothing excluded by default
+  # cluster_instances = true ## true by default
+
+  ## Datastores
+  datastore_metric_include = [
+    "datastore.numberReadAveraged.average",
+    "datastore.numberWriteAveraged.average",
+    "datastore.throughput.contention.average",
+    "datastore.throughput.usage.average",
+    "datastore.datastoreIops.average",
+    "datastore.write.average",
+    "datastore.read.average",
+    "datastore.totalReadLatency.average",
+    "datastore.totalWriteLatency.average"
+  ] ## if omitted or empty, all metrics are collected
+  #datastore_metric_exclude = ["*"] ## Nothing excluded by default
+  # datastore_instances = false ## false by default for Datastores only
+
+  ## Datacenters
+  datacenter_metric_include = [] ## if omitted or empty, all metrics are collected
+  datacenter_metric_exclude = [ "*" ] ## Datacenters are not collected by default.
+  # datacenter_instances = false ## false by default for Datastores only
+
+  ## Plugin Settings
+  ## separator character to use for measurement and field names (default: "_")
+  # separator = "_"
+
+  ## number of objects to retreive per query for realtime resources (vms and hosts)
+  ## set to 64 for vCenter 5.5 and 6.0 (default: 256)
+  # max_query_objects = 256
+
+  ## number of metrics to retreive per query for non-realtime resources (clusters and datastores)
+  ## set to 64 for vCenter 5.5 and 6.0 (default: 256)
+  # max_query_metrics = 256
+
+  ## number of go routines to use for collection and discovery of objects and metrics
+  # collect_concurrency = 1
+  # discover_concurrency = 1
+
+  ## whether or not to force discovery of new objects on initial gather call before collecting metrics
+  ## when true for large environments this may cause errors for time elapsed while collecting metrics
+  ## when false (default) the first collection cycle may result in no or limited metrics while objects are discovered
+  # force_discover_on_init = false
+
+  ## the interval before (re)discovering objects subject to metrics collection (default: 300s)
+  # object_discovery_interval = "300s"
+
+  ## timeout applies to any of the api request made to vcenter
+  # timeout = "20s"
+
+  insecure_skip_verify = true # vsphere uses a self signed certificate
+
+  [inputs.vsphere.tagpass]
+    clustername = [ "MN_Prod_B", "VA_Prod_B", "MN_DevQA_Cluster", "VA_DevQA_Cluster", "MN_LoadTest_Cluster" ]
+

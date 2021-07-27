@@ -1,0 +1,18 @@
+- name: Create kafka consumer telegraf configuration file
+  template:
+    src: kafka_infra_consumer.conf.j2
+    dest: /etc/telegraf/telegraf.d/kafka_infra_consumer.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true
+  notify: 'reload telegraf'
+
+- name: Copy out replicator script
+  copy: 
+    src: get_kafka_replicator.py
+    dest: /app/uid/telegraf/scripts/get_kafka_replicator.py
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  become: true

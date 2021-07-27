@@ -1,0 +1,47 @@
+#- name: Remove directories for jolokia
+#  file:
+#    state: absent
+#    path: "/app/uid/telegraf/jolokia"
+#  become: true
+
+- name: Create directories for jolokia
+  file:
+    state: directory
+    path: "/app/uid/{{ item }}"
+    owner: s_ansible
+    group: telegraf
+    mode: 0775
+  become: true
+  with_items:
+    - telegraf/jolokia
+    - "telegraf/jolokia/jolokia-{{ jolokia_version }}"
+
+- name: Copy jolokia access config file
+  copy:
+    src: jolokia-access.xml
+    dest: /app/uid/telegraf/jolokia/jolokia-access.xml
+    owner: s_ansible
+    group: cfyg_cdftp
+  become: true
+
+- name: Check if jolokia is on the server
+  stat: 
+    path: "/app/uid/telegraf/jolokia/jolokia-{{ jolokia_version }}/agents"
+  register: jolokia
+
+- name: Download jolokia zip
+  unarchive:
+    src: "https://{{ artifactory_server }}/artifactory/ops-tools-local/jolokia/{{ jolokia_version }}/jolokia-bin.zip"
+    dest: "/app/uid/telegraf/jolokia/jolokia-{{ jolokia_version }}"
+    remote_src: true
+  when: not jolokia.stat.exists
+  become: true
+
+- name: Create jolokia current symbolic link
+  file:
+    src: "/app/uid/telegraf/jolokia/jolokia-{{ jolokia_version }}"
+    dest: /app/uid/telegraf/jolokia/current
+    owner: s_ansible
+    group: telegraf
+    state: link
+  become: true

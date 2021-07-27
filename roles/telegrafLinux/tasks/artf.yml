@@ -1,0 +1,9 @@
+- name: Create artifactory telegraf configuration file
+  template:
+    src: artifactory.j2
+    dest: /etc/telegraf/telegraf.d/artifactory.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

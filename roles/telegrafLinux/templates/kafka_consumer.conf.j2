@@ -1,0 +1,45 @@
+# Read metrics from Kafka topic(s)
+[[inputs.kafka_consumer]]
+  ## kafka servers
+  brokers = [{% for broker in kafka_brokers %}"{{ broker}}"{% if not loop.last %},{% endif %}{% endfor %}]
+  ## topic(s) to consume
+  topics = ["telegraf"]
+
+  ## Set the minimal supported Kafka version.  Setting this enables the use of new
+  ## Kafka features and APIs.  Of particular interest, lz4 compression
+  ## requires at least version 0.10.0.0.
+  ##   ex: version = "1.1.0"
+  # version = ""
+
+  ## the name of the consumer group
+  consumer_group = "telegraf_metrics_consumers"
+  ## Offset (must be either "oldest" or "newest")
+  offset = "oldest"
+
+  ## Data format to consume.
+  ## Each data format has its own unique set of configuration options, read
+  ## more about them here:
+  ## https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_INPUT.md
+  data_format = "influx"
+
+  ## Maximum length of a message to consume, in bytes (default 0/unlimited);
+  ## larger messages are dropped
+  max_message_len = 1000000
+
+[[outputs.influxdb]]
+  # The full HTTP or UDP endpoint URL for your InfluxDB instance.
+  # Multiple urls can be specified but it is assumed that they are part of the same
+  # cluster, this means that only ONE of the urls will be written to each interval.
+  urls = ["{{ influx_db['protocol'] | default('http') }}://{{ influx_db['host'] }}:{{ influx_db['port'] }}"]
+  # The target database for metrics (telegraf will create it if not exists)
+  database = "telegraf"
+
+  # Precision of writes, valid values are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+  # note: using second precision greatly helps InfluxDB compression
+  precision = "s"
+
+  ## Write timeout (for the InfluxDB client), formatted as a string.
+  ## If not provided, will default to 5s. 0s means no timeout (not recommended).
+  timeout = "15s"
+  username = "telegraf"
+  password = "{{ telegraf_password }}"

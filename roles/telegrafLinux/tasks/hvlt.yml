@@ -1,0 +1,10 @@
+# Configure telegraf plugin
+- name: Create statd telegraf configuration file for vault
+  copy:
+    src: vault_server.conf
+    dest: /etc/telegraf/telegraf.d/vault_server.conf
+    mode: '755'
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true

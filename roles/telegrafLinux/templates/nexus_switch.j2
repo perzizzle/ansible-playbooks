@@ -1,0 +1,23 @@
+[[inputs.snmp]]
+  agents = [ "tcp://{{ item.ip }}" ]
+  version = 2
+  community = "{{ nexus_snmp_community_ro }}"
+  interval = "60s"
+  timeout = "10s"
+  retries = 3
+  name_prefix="infra_nexus_"
+
+  [[inputs.snmp.table]]
+    name = "interface"
+    inherit_tags = [ "hostname" ]
+    oid = "EtherLike-MIB::dot3StatsTable"
+
+    [[inputs.snmp.table.field]]
+      name = "ifDescr"
+      oid = "IF-MIB::ifDescr"
+      is_tag = true
+
+    [[inputs.snmp.table.field]]
+      name = "ifAlias"
+      oid = "IF-MIB::ifAlias"
+      is_tag = true

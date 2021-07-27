@@ -1,0 +1,11 @@
+[[inputs.jolokia2_agent]]
+  urls = ["http://localhost:50564/jolokia"]
+
+
+  [[inputs.jolokia2_agent.metric]]
+    name = "infra_kafka_zookeeper_service"
+    #mbean  = "org.apache.ZooKeeperService:name0=*ReplicatedServer_id1,name1=replica.1,name2=Follower"
+    mbean  = "org.apache.ZooKeeperService:name0=*,name1=*,name2=*"
+    field_prefix = "$1.$2.$3."
+    #paths = ["ClientPort"]
+

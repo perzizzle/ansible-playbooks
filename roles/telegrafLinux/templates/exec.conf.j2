@@ -1,0 +1,6 @@
+[[inputs.exec]]
+  name_prefix="infra_"
+  commands = [{% for script in telegraf_exec_commands %}"{{ script }}"{% if not loop.last %},{% endif %}{% endfor %}]
+  timeout = "5s"
+  data_format = "influx"
+  interval = "60s"

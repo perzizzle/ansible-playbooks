@@ -1,0 +1,22 @@
+- name: Render mpi netstat script
+  template:
+    src: mpi_netstat.j2
+    dest: "/app/uid/telegraf/scripts/mpi_netstat.sh"
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'
+  become: true
+
+- name: Render input plugin configuration
+  template:
+    src: exec.conf.j2
+    dest: /etc/telegraf/telegraf.d/mpii.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  vars:
+    telegraf_exec_commands: 
+      - "/app/uid/telegraf/scripts/mpi_netstat.sh"
+  notify: 'reload telegraf'
+  become: true

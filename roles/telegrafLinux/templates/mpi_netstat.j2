@@ -1,0 +1,5 @@
+#!/bin/bash
+{% for item in mpi_instances %}
+{{ item.name }}=$(netstat -an | grep {{ item.port }} | wc -l)
+echo "mpi_connections,name={{ item.name }},port={{ item.port }} connections=${{ item.name }}"
+{% endfor %}

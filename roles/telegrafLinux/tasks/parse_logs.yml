@@ -1,0 +1,8 @@
+- name: Create log.parser input for access.log
+  template:
+    src: parse_logs.j2
+    dest: /etc/telegraf/telegraf.d/parse_logs.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  notify: 'reload telegraf'

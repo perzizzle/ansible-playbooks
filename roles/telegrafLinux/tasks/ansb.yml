@@ -1,0 +1,14 @@
+- name: Create tower ping config per server
+  template:
+    src: http_response.conf.j2
+    dest: /etc/telegraf/telegraf.d/tower_server_http_response.conf
+    mode: 0755
+    group: telegraf
+    owner: s_ansible
+  vars:
+    url: localhost:443
+    uri: /api/v2/ping/?format=json
+    insecure_skip_verify: "true"
+    name_prefix: infra_tower_ping_
+  become: true
+  notify: 'reload telegraf'
